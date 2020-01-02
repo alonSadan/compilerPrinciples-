@@ -22,8 +22,10 @@ let primitive_names_to_labels =
 
 let make_prologue consts_tbl fvars_tbl =
   let make_primitive_closure (prim, label) =
+    (* Adapt the addressing here to your fvar addressing scheme:
+       This imlementation assumes fvars are offset from the base label fvar_tbl *)
 "    MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, " ^ label  ^ ")
-    mov [" ^  (string_of_int (List.assoc prim fvars_tbl)) ^ "], rax" in
+    mov [fvar_tbl+" ^  (string_of_int (List.assoc prim fvars_tbl)) ^ "], rax" in
   let constant_bytes (c, (a, s)) = s in
 "
 ;;; All the macros and the scheme-object printing procedure
@@ -41,10 +43,10 @@ const_tbl:
 
 ;;; These macro definitions are required for the primitive
 ;;; definitions in the epilogue to work properly
-%define SOB_VOID_ADDRESS " ^ (string_of_int (fst (List.assoc Void consts_tbl))) ^ "
-%define SOB_NIL_ADDRESS " ^ (string_of_int (fst (List.assoc (Sexpr Nil) consts_tbl))) ^ "
-%define SOB_FALSE_ADDRESS " ^ (string_of_int (fst (List.assoc (Sexpr (Bool true)) consts_tbl))) ^ "
-%define SOB_TRUE_ADDRESS " ^ (string_of_int  (fst (List.assoc (Sexpr (Bool false)) consts_tbl))) ^ "
+%define SOB_VOID_ADDRESS const_tbl+" ^ (string_of_int (fst (List.assoc Void consts_tbl))) ^ "
+%define SOB_NIL_ADDRESS const_tbl+" ^ (string_of_int (fst (List.assoc (Sexpr Nil) consts_tbl))) ^ "
+%define SOB_FALSE_ADDRESS const_tbl+" ^ (string_of_int (fst (List.assoc (Sexpr (Bool false)) consts_tbl))) ^ "
+%define SOB_TRUE_ADDRESS const_tbl+" ^ (string_of_int  (fst (List.assoc (Sexpr (Bool true)) consts_tbl))) ^ "
 
 fvar_tbl:
 " ^
