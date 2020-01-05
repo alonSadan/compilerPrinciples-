@@ -97,7 +97,7 @@
 	(null? null?))
     (lambda (x . y)
       (if (null? y)
-	  (/ 0 x)
+	  (/ 1 x)
 	  (/ x (apply * y))))))
 
 (define =
