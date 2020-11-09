@@ -50,12 +50,10 @@ open Reader;;
 module Tester = struct
 
   let nt_whitespaces = star nt_whitespace;;
-  let digit = range '0' '9';;
 
   (* ToDo: update nt_char maybe (special char?) *)
   let nt_character = const (fun ch -> ch > ' ');;
   let nt_characters = star nt_character
-
 
   let make_paired nt_left nt_right nt =
     let nt = caten nt_left nt in
@@ -89,6 +87,28 @@ module Tester = struct
     let nt_line_comment = make_paired tok_semicolun nt_end_of_comment nt_characters in
     (disj nt_line_comment nt_sexpr_comment) s
   
+  let tok_boolean = pack (disj (make_spaced (word_ci "#t")) (make_spaced (word_ci "#f")))
+    (function 
+    | ['#'; 't'] -> Bool(true)
+    | ['#'; 'T'] -> Bool(true)
+    | ['#'; 'f'] -> Bool(false)
+    | ['#'; 'F'] -> Bool(false)
+    | _ -> raise X_no_match);;
+  
+  let int_of_list ds = int_of_string(list_to_string ds);;
+  let digit = range '0' '9';;
+  let tok_int = pack (plus digit) 
+    (function (ds) -> Fraction(int_of_list ds,1));; 
+  
+  let rec gcd a b =
+    match b with 
+      | 0 -> a
+      | b -> gcd b (a mod b);;
+  let tok_fractions = 
+    let frac = caten (caten (plus digit) (char '/')) (plus digit) in 
+    let frac = pack frac (function ((a,_),b) -> (int_of_list a,int_of_list b)) in
+      pack frac (function (a,b) -> Fraction(a / (gcd a b),b / (gcd a b)));; 
+
     
 end;;
 
