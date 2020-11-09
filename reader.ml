@@ -1,6 +1,6 @@
 
 #use "pc.ml";;
-
+open PC;;
 exception X_not_yet_implemented;;
 exception X_this_should_not_happen;;
   
@@ -44,3 +44,52 @@ let normalize_scheme_symbol str =
 let read_sexprs string = raise X_not_yet_implemented;;
   
 end;; (* struct Reader *)
+
+open Reader;;
+
+module Tester = struct
+
+  let nt_whitespaces = star nt_whitespace;;
+  let digit = range '0' '9';;
+
+  (* ToDo: update nt_char maybe (special char?) *)
+  let nt_character = const (fun ch -> ch > ' ');;
+  let nt_characters = star nt_character
+
+
+  let make_paired nt_left nt_right nt =
+    let nt = caten nt_left nt in
+    let nt = pack nt (function (_, e) -> e) in
+    let nt = caten nt nt_right in
+    let nt = pack nt (function (e, _) -> e) in
+      nt;;
+
+  let make_spaced nt = make_paired nt_whitespaces nt_whitespaces nt;;
+  let make_left_spaced nt = make_paired nt_whitespaces nt_epsilon nt;;
+  let make_right_spaced nt = make_paired nt_epsilon nt_whitespaces nt;;
+
+  (* ToDo: maybe combine all the make_spaced into one token *)
+  let tok_lparen = make_spaced ( char '(');;
+  let tok_rparen = make_spaced ( char ')');;
+  let tok_addop = make_spaced ( char '+');;
+  let tok_mulop = make_spaced ( char '*');;
+  let tok_semicolun = make_spaced ( char ';');;
+  
+  (* ToDo: fix this nt after String/char is completed *)
+  let nt_end_of_line = nt_epsilon;;
+  
+  (* ToDo: in reader - when comment found then remove it from string *)
+  let rec nt_sexpr_comment s =
+    let nt_nested = pack (caten (make_spaced (word "#;")) (star (disj nt_whitespaces nt_comment)))
+      (fun (e,_) -> e) in
+      nt_nested s
+
+  and nt_comment s =
+    let nt_end_of_comment = disj nt_end_of_line nt_end_of_input in
+    let nt_line_comment = make_paired tok_semicolun nt_end_of_comment nt_characters in
+    (disj nt_line_comment nt_sexpr_comment) s
+  
+    
+end;;
+
+open Tester;;
