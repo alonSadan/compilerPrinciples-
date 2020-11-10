@@ -52,7 +52,7 @@ module Tester = struct
   let nt_whitespaces = star nt_whitespace;;
 
   (* ToDo: update nt_char maybe (special char?) *)
-  let nt_character = const (fun ch -> ch > ' ');;
+  let nt_character = const (fun ch -> ch >= ' ');;
   let nt_characters = star nt_character
 
   let make_paired nt_left nt_right nt =
@@ -76,16 +76,24 @@ module Tester = struct
   (* ToDo: fix this nt after String/char is completed *)
   let nt_end_of_line = nt_epsilon;;
   
-  (* ToDo: in reader - when comment found then remove it from string *)
-  let rec nt_sexpr_comment s =
-    let nt_nested = pack (caten (make_spaced (word "#;")) (star (disj nt_whitespaces nt_comment)))
-      (fun (e,_) -> e) in
-      nt_nested s
+  let nt_body = const (fun ch -> ch = 'b');;
+  let nt_end = const (fun ch -> ch = 'e');;
 
-  and nt_comment s =
+  (* ToDo: change nt_whitespace and nt_end to read_sexpr  *)
+  let rec nt_sexpr_comment s =    
+    pack (caten 
+          (make_spaced (word "#;")) 
+          (caten 
+            (disj (delayed (fun _ -> nt_sexpr_comment))
+                  (pack nt_whitespaces (fun _ ->"")))
+            
+            nt_end))
+        (fun _ ->"") s ;;    
+            
+  let nt_line_comment s =
     let nt_end_of_comment = disj nt_end_of_line nt_end_of_input in
     let nt_line_comment = make_paired tok_semicolun nt_end_of_comment nt_characters in
-    (disj nt_line_comment nt_sexpr_comment) s
+      pack nt_line_comment (fun _ ->"")s;;
   
   let tok_boolean = pack (disj (make_spaced (word_ci "#t")) (make_spaced (word_ci "#f")))
     (function 
@@ -97,19 +105,29 @@ module Tester = struct
   
   let int_of_list ds = int_of_string(list_to_string ds);;
   let digit = range '0' '9';;
-  let tok_int = pack (plus digit) 
+  let digits = plus digit;;
+
+  let tok_int = pack digits
     (function (ds) -> Fraction(int_of_list ds,1));; 
   
-  let rec gcd a b =
-    match b with 
-      | 0 -> a
-      | b -> gcd b (a mod b);;
   let tok_fractions = 
-    let frac = caten (caten (plus digit) (char '/')) (plus digit) in 
+    let rec gcd a b =
+      match b with 
+        | 0 -> a
+        | b -> gcd b (a mod b) in
+    let frac = caten (caten digits (char '/')) digits in 
     let frac = pack frac (function ((a,_),b) -> (int_of_list a,int_of_list b)) in
       pack frac (function (a,b) -> Fraction(a / (gcd a b),b / (gcd a b)));; 
 
-    
+  let float_of_list ds = float_of_string(list_to_string ds);;
+  let tok_float = 
+    let fl = pack (caten (maybe (disj (make_left_spaced (char '+')) (make_left_spaced (char '-'))))
+              (caten digits (caten (char '.') digits)))
+            (function 
+              | (Some(sign),(numberA,(point,numberB))) -> (sign::numberA)@[point]@numberB
+              | (_,(numberA,(point,numberB))) -> numberA@[point]@numberB) in
+          pack fl (function (e)->Float(float_of_list e));;
+
 end;;
 
 open Tester;;
