@@ -95,7 +95,7 @@ module Tester = struct
     let nt_line_comment = make_paired tok_semicolun nt_end_of_comment nt_characters in
       pack nt_line_comment (fun _ ->"")s;;
   
-  let tok_boolean = pack (disj (make_spaced (word_ci "#t")) (make_spaced (word_ci "#f")))
+  let nt_boolean = pack (disj (make_spaced (word_ci "#t")) (make_spaced (word_ci "#f")))
     (function 
     | ['#'; 't'] -> Bool(true)
     | ['#'; 'T'] -> Bool(true)
@@ -107,27 +107,88 @@ module Tester = struct
   let digit = range '0' '9';;
   let digits = plus digit;;
 
-  let tok_int = pack digits
-    (function (ds) -> Fraction(int_of_list ds,1));; 
+  let tok_int = caten 
+                (maybe (disj (make_left_spaced (char '+')) (make_left_spaced (char '-'))))
+                digits;;
+
+  let nt_int = pack tok_int
+    (function
+      |(Some(sign),ds) -> Fraction(int_of_list (sign::ds),1)
+      |(_,ds) -> Fraction(int_of_list ds,1));;
   
-  let tok_fractions = 
+      let rec gcd1 a b =
+        match b with 
+          | 0 -> a
+          | b -> gcd1 b (a mod b)
+
+  let nt_fraction = 
     let rec gcd a b =
       match b with 
         | 0 -> a
         | b -> gcd b (a mod b) in
-    let frac = caten (caten digits (char '/')) digits in 
-    let frac = pack frac (function ((a,_),b) -> (int_of_list a,int_of_list b)) in
-      pack frac (function (a,b) -> Fraction(a / (gcd a b),b / (gcd a b)));; 
+    let frac = caten (caten tok_int (char '/')) digits in 
+    let frac = pack frac 
+        (function 
+         | (((Some(sign),a),_),b) -> (int_of_list (sign::a),int_of_list b) 
+         | (((_,a),_),b) -> (int_of_list a,int_of_list b)) in
+      pack frac (function (a,b) -> 
+                  if a < 0 then Fraction(-1 * (a / (gcd a b)),-1 * (b / (gcd a b))) 
+                  else Fraction(a / (gcd a b),b / (gcd a b)));; 
 
   let float_of_list ds = float_of_string(list_to_string ds);;
-  let tok_float = 
-    let fl = pack (caten (maybe (disj (make_left_spaced (char '+')) (make_left_spaced (char '-'))))
-              (caten digits (caten (char '.') digits)))
+  let nt_float = 
+    let fl = pack (caten tok_int (caten (char '.') digits))
             (function 
-              | (Some(sign),(numberA,(point,numberB))) -> (sign::numberA)@[point]@numberB
-              | (_,(numberA,(point,numberB))) -> numberA@[point]@numberB) in
+              | ((Some(sign),numberA),(point,numberB)) -> (sign::numberA)@[point]@numberB
+              | ((_,numberA),(point,numberB)) -> numberA@[point]@numberB) in
           pack fl (function (e)->Float(float_of_list e));;
 
+  
+  let nt_number = pack (disj_list [nt_fraction;nt_int;nt_float]) 
+                  (function (e) -> Number(e));;
+
+  let letter_lowercase = range 'a' 'z';;
+  let letter_uppercase = pack (range 'A' 'Z') (function (e) -> lowercase_ascii e);;
+  (* map char string: *)
+  let punctuation = one_of "!$^*-_=+<>/?";; 
+  
+  let tok_symbol_char = disj_list [digit;letter_lowercase;letter_uppercase;punctuation];;
+  let tok_char_not_dot = pack (plus (char '.'))
+                            (function (e) -> 
+                              if List.length e = 1 then raise X_no_match
+                              else e);; 
+                              
+  (* ⟨SymbolCharNoDot⟩ | ⟨SymbolChar⟩+ *)
+  let nt_symbols = pack (disj tok_char_not_dot (plus tok_symbol_char))
+                          (function (e)-> Symbol(list_to_string e));;
+                    
+  
+  (* ⟨String⟩ ::= " ⟨StringChar⟩∗ " *)
+  (* ⟨StringChar⟩ ::= ⟨StringLiteralChar⟩ | ⟨StringMetaChar⟩ *)
+  (* ⟨StringLiteralChar⟩ ::= c, where c is any character other than the
+    backslash character (\) or the double-quote
+    char 
+   *)
+
+  
+  (* \f is not  a valid special meta char in Ocaml - so we need to parse it differently*)
+  let meta_chars = one_of  "\r\n\t\\\"";;
+  let tok_meta_chars = pack (plus (disj
+                                    (pack (word "\\f") (function (e) -> list_to_string e))                                  
+                                    (pack meta_chars (function (e) ->String.make 1 e))                                                                
+                                  )
+                            )(function (e) -> String(String.concat "" e));
+
+
+                                            
+      
+
+    
+  (* let named_chars = List.map char_of_int [0;10;13;9;12;32];;
+  let tok_named_chars = pack (disj_list (List.map char meta_chars))
+                            (function (e) -> String.make 1 e); 
+   *)
+                          
 end;;
 
 open Tester;;
