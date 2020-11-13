@@ -40,15 +40,6 @@ let normalize_scheme_symbol str =
 	s) then str
   else Printf.sprintf "|%s|" str;;
 
-
-let read_sexprs string = raise X_not_yet_implemented;;
-  
-end;; (* struct Reader *)
-
-open Reader;;
-
-module Tester = struct
-
   let nt_whitespaces = star nt_whitespace;;
 
   (* ToDo: update nt_char maybe (special char?) *)
@@ -95,6 +86,8 @@ module Tester = struct
     let nt_line_comment = make_paired tok_semicolun nt_end_of_comment nt_characters in
       pack nt_line_comment (fun _ ->"")s;;
   
+  let nt_comment = disj nt_line_comment nt_sexpr_comment;;
+
   let nt_boolean = pack (disj (make_spaced (word_ci "#t")) (make_spaced (word_ci "#f")))
     (function 
     | ['#'; 't'] -> Bool(true)
@@ -144,7 +137,7 @@ module Tester = struct
           pack fl (function (e)->Float(float_of_list e));;
 
   
-  let nt_number = pack (disj_list [nt_fraction;nt_int;nt_float]) 
+  let nt_number = pack (disj_list [nt_fraction;nt_float;nt_int]) 
                   (function (e) -> Number(e));;
 
   let letter_lowercase = range 'a' 'z';;
@@ -172,23 +165,72 @@ module Tester = struct
 
   
   (* \f is not  a valid special meta char in Ocaml - so we need to parse it differently*)
-  let meta_chars = one_of  "\r\n\t\\\"";;
-  let tok_meta_chars = pack (plus (disj
-                                    (pack (word "\\f") (function (e) -> list_to_string e))                                  
-                                    (pack meta_chars (function (e) ->String.make 1 e))                                                                
-                                  )
-                            )(function (e) -> String(String.concat "" e));
+   let nt_meta_char = 
+    let meta_chars = one_of  "\r\n\t\\" in
+    let nt = (disj
+              (pack (word "\\f") (function (e) -> char_of_int 12))                                  
+               meta_chars                                                                
+             ) in 
+    nt;;
+  
+  let nt_char = 
+    let nt_named_chars = disj_list (List.map word_ci 
+                                          ["#\\nul";"#\\newline";"#\\return";"#\\tab";"#\\page";"#\\space"]) in 
+                                        
+    let nt_named_chars = pack nt_named_chars list_to_string in 
+    let nt_named_chars = pack nt_named_chars
+                  (function 
+                    | "#\\nul" -> char_of_int 0
+                    | "#\\newline" -> char_of_int 10
+                    | "#\\return" -> char_of_int 13                
+                    | "#\\tab" -> char_of_int 9
+                    | "#\\page" -> char_of_int 12
+                    | "#\\space" -> char_of_int 32
+                    | _ -> raise  X_no_match
+                  ) in 
+    let nt_visble_char = const (fun ch -> ch > ' ') in 
+    let nt_visble_char = pack (caten (make_left_spaced (word "#\\")) nt_visble_char)
+                              (function (_,e) -> e) in 
+    pack (disj nt_named_chars nt_visble_char)
+        (function (e) -> Char(e));;
+                                                                     
+  let nt_literal_char = const (fun ch -> ch != '\"' && ch != '\\'  && ch > ' ');;
+  (* String -> "(StringliteralChar | StringMetaChar)* "  *)  
+  (* ToDo: nt_string should work without removing (quote) from stringf meta char *)  
+  let nt_string = 
+    let nt_string_quote = (make_spaced (char '\"')) in
+    let nt_string_char = star (disj nt_literal_char nt_meta_char) in 
+    let nt  = pack (caten nt_string_quote (caten nt_string_char nt_string_quote))
+                   (function (quote_start,(body,quote_end)) -> String (list_to_string body)) in
+        nt;;
+   
+        
+  let nt_nil = 
+    let lParen = (make_spaced (char '(')) in 
+    let rParen = (make_spaced (char ')')) in  
+      pack (caten lParen (caten (maybe nt_comment) rParen))
+           (function 
+            | (l, (Some(comment),r)) -> Nil
+            | (l, (None,r)) -> Nil);;
+                         
+
+  (* ⟨Sexpr⟩ ::= ⟨Boolean⟩ | ⟨Char⟩ | ⟨Number⟩ | ⟨String⟩
+  | ⟨Symbol⟩ | ⟨List⟩ | ⟨DottedList⟩ | ⟨Quoted⟩
+  | ⟨QuasiQuoted⟩ | ⟨Unquoted⟩
+  | ⟨UnquoteAndSpliced⟩ *)
+let read_sexprs string = 
+  let nt = star (disj_list [nt_boolean;nt_char;nt_number;nt_string;nt_symbols]) in 
+    let (e,s) = nt (string_to_list string) in
+      e;;
+       
+
+  
+end;; (* struct Reader *)
+
+open Reader;;
 
 
-                                            
-      
+(*open Tester;;*)
 
-    
-  (* let named_chars = List.map char_of_int [0;10;13;9;12;32];;
-  let tok_named_chars = pack (disj_list (List.map char meta_chars))
-                            (function (e) -> String.make 1 e); 
-   *)
-                          
-end;;
 
-open Tester;;
+
