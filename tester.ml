@@ -169,14 +169,6 @@ module Tester = struct
    *)
 
   
-  (* \f is not  a valid special meta char in Ocaml - so we need to parse it differently*)
-   let nt_meta_char = 
-    let meta_chars = one_of  "\\\r\n\t" in
-    let nt = (disj
-              (pack (word "\\f") (function (e) -> char_of_int 12))                                  
-               meta_chars                                                                
-             ) in 
-    nt;;
   
   let nt_char = 
     let nt_named_chars = disj_list (List.map word_ci 
@@ -199,10 +191,23 @@ module Tester = struct
     pack (disj nt_named_chars nt_visble_char)
         (function (e) -> Char(e));;
 
-        let nt_literal_char = const (fun ch -> ch != '\"' && ch != '\\'  && ch >= ' ');;
+  let nt_literal_char = const (fun ch -> ch != '\"' && ch != '\\'  && ch >= ' ');;
+  (* \f is not  a valid special meta char in Ocaml - so we need to parse it differently*)
+  let nt_meta_char = 
+    let meta_chars = one_of  "\\\r\n\t" in
+    let meta_chars_pair = pack (caten (char '\\') (one_of "rntf\"\\"))
+                                (function 
+                                  | (_,'r') -> char_of_int 13
+                                  | (_,'n') -> char_of_int 10
+                                  | (_,'t') -> char_of_int 9
+                                  | (_,'f') -> char_of_int 12
+                                  | (_,'\"') -> char_of_int 34
+                                  | (_,'\\') -> char_of_int 92
+                                  | _ -> raise X_no_match) in
+    disj meta_chars_pair meta_chars;;
+  
   (* String -> "(StringliteralChar | StringMetaChar)* "  *)  
   (* ToDo: nt_string should work without removing (quote) from string meta char *)  
-
   let nt_string = 
     let nt_left_string_quote = (make_left_spaced (char '\"')) in
     let nt_right_string_quote =  (make_right_spaced (char '\"')) in

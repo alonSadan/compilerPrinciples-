@@ -153,16 +153,6 @@ let normalize_scheme_symbol str =
     char 
    *)
 
-  
-  (* \f is not  a valid special meta char in Ocaml - so we need to parse it differently*)
-   let nt_meta_char = 
-    let meta_chars = one_of  "\\\r\n\t" in
-    let nt = (disj
-              (pack (word "\\f") (function (e) -> char_of_int 12))                                  
-               meta_chars                                                                
-             ) in 
-    nt;;
-  
   let nt_char = 
     let nt_named_chars = disj_list (List.map word_ci 
                                           ["#\\nul";"#\\newline";"#\\return";"#\\tab";"#\\page";"#\\space"]) in 
@@ -184,7 +174,19 @@ let normalize_scheme_symbol str =
     pack (disj nt_named_chars nt_visble_char)
         (function (e) -> Char(e));;
 
-        let nt_literal_char = const (fun ch -> ch != '\"' && ch != '\\'  && ch >= ' ');;
+  let nt_literal_char = const (fun ch -> ch != '\"' && ch != '\\'  && ch >= ' ');;
+  let nt_meta_char = 
+    let meta_chars = one_of  "\\\r\n\t" in
+    let meta_chars_pair = pack (caten (char '\\') (one_of "rntf\"\\"))
+                                (function 
+                                  | (_,'r') -> char_of_int 13
+                                  | (_,'n') -> char_of_int 10
+                                  | (_,'t') -> char_of_int 9
+                                  | (_,'f') -> char_of_int 12
+                                  | (_,'\"') -> char_of_int 34
+                                  | (_,'\\') -> char_of_int 92
+                                  | _ -> raise X_no_match) in
+    disj meta_chars_pair meta_chars;;
   (* String -> "(StringliteralChar | StringMetaChar)* "  *)  
   (* ToDo: nt_string should work without removing (quote) from string meta char *)  
 
@@ -195,44 +197,6 @@ let normalize_scheme_symbol str =
     let nt  = pack (caten nt_left_string_quote (caten nt_string_char nt_right_string_quote))
                    (function (quote_start,(body,quote_end)) -> String (list_to_string body)) in
         nt;;
-
-  (* let nt_string =
-    let rec nt_make_string ()=     
-      let nt_left_string_quote = (make_left_spaced (char '\"')) in
-      let nt_right_string_quote =  (make_right_spaced (char '\"')) in
-      let nt_string_char = plus (disj nt_literal_char nt_meta_char) in 
-      pack (caten nt_left_string_quote 
-              (caten (disj nt_string_char (disj (delayed nt_make_string) 
-                                                pack nt_epsilon (fun _->[]) ))
-              nt_right_string_quote))
-                   (function (quote_start,(body,quote_end)) ->   body)
-    in
-    pack (nt_make_string ()) (function (e) -> []);;
-   *)
-    
-
-(*    let nt_string =
-    let nt_left_string_quote = (make_left_spaced (char '\"')) in
-    let nt_right_string_quote =  (make_right_spaced (char '\"')) in
-    let nt_string_char = plus (disj nt_literal_char nt_meta_char) in 
-    let rec nt_make_string =     
-    fun x -> 
-      pack (caten nt_left_string_quote 
-              (caten (disj nt_string_char (disj (nt_make_string) 
-                                                pack nt_epsilon (fun _->"") ))
-              nt_right_string_quote))
-                    (function (quote_start,(body,quote_end)) ->   body)
-    x in
-    pack nt_string (function (e) -> String(list_to_string(e))
-
-  let rec nt_sexpr_comment =
-    fun x ->    
-      pack (caten (make_spaced (word "#;")) 
-            (caten (disj nt_sexpr_comment (pack nt_epsilon (fun _ -> ""))) nt_sexpr))
-            (fun _ -> "")
-    x;;
-    *)
-
 
   let rec nt_list_pair s= 
     let lParen = (make_spaced (char '(')) in 
