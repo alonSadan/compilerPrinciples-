@@ -52,7 +52,6 @@ module Tester = struct
 
   let nt_whitespaces = star nt_whitespace;;
 
-  (* ToDo: update nt_char maybe (special char?) *)
   let nt_character = const (fun ch -> ch >= ' ');;
   let nt_characters = star nt_character
 
@@ -67,21 +66,12 @@ module Tester = struct
   let make_left_spaced nt = make_paired nt_whitespaces nt_epsilon nt;;
   let make_right_spaced nt = make_paired nt_epsilon nt_whitespaces nt;;
 
-  (* ToDo: maybe combine all the make_spaced into one token *)
-  let tok_lparen = make_spaced ( char '(');;
-  let tok_rparen = make_spaced ( char ')');;
-  let tok_addop = make_spaced ( char '+');;
-  let tok_mulop = make_spaced ( char '*');;
+  
   let tok_semicolun = make_spaced ( char ';');;
   
-  (* ToDo: fix this nt after String/char is completed *)
   
   
-  let nt_body = const (fun ch -> ch = 'b');;
-  let nt_end = const (fun ch -> ch = 'e');;
-
-  (* ToDo: change nt_whitespace and nt_end to read_sexpr  *)
-  (*    S -> #;(S | nt_epsilon)sexpr    *)
+  
   
  
   
@@ -181,7 +171,7 @@ module Tester = struct
   
   (* \f is not  a valid special meta char in Ocaml - so we need to parse it differently*)
    let nt_meta_char = 
-    let meta_chars = one_of  "\r\n\t\\" in
+    let meta_chars = one_of  "\\\r\n\t" in
     let nt = (disj
               (pack (word "\\f") (function (e) -> char_of_int 12))                                  
                meta_chars                                                                
@@ -211,7 +201,8 @@ module Tester = struct
 
         let nt_literal_char = const (fun ch -> ch != '\"' && ch != '\\'  && ch >= ' ');;
   (* String -> "(StringliteralChar | StringMetaChar)* "  *)  
-  (* ToDo: nt_string should work without removing (quote) from stringf meta char *)  
+  (* ToDo: nt_string should work without removing (quote) from string meta char *)  
+
   let nt_string = 
     let nt_left_string_quote = (make_left_spaced (char '\"')) in
     let nt_right_string_quote =  (make_right_spaced (char '\"')) in
@@ -219,7 +210,45 @@ module Tester = struct
     let nt  = pack (caten nt_left_string_quote (caten nt_string_char nt_right_string_quote))
                    (function (quote_start,(body,quote_end)) -> String (list_to_string body)) in
         nt;;
-                           
+
+  (* let nt_string =
+    let rec nt_make_string ()=     
+      let nt_left_string_quote = (make_left_spaced (char '\"')) in
+      let nt_right_string_quote =  (make_right_spaced (char '\"')) in
+      let nt_string_char = plus (disj nt_literal_char nt_meta_char) in 
+      pack (caten nt_left_string_quote 
+              (caten (disj nt_string_char (disj (delayed nt_make_string) 
+                                                pack nt_epsilon (fun _->[]) ))
+              nt_right_string_quote))
+                   (function (quote_start,(body,quote_end)) ->   body)
+    in
+    pack (nt_make_string ()) (function (e) -> []);;
+   *)
+    
+
+(*    let nt_string =
+    let nt_left_string_quote = (make_left_spaced (char '\"')) in
+    let nt_right_string_quote =  (make_right_spaced (char '\"')) in
+    let nt_string_char = plus (disj nt_literal_char nt_meta_char) in 
+    let rec nt_make_string =     
+    fun x -> 
+      pack (caten nt_left_string_quote 
+              (caten (disj nt_string_char (disj (nt_make_string) 
+                                                pack nt_epsilon (fun _->"") ))
+              nt_right_string_quote))
+                    (function (quote_start,(body,quote_end)) ->   body)
+    x in
+    pack nt_string (function (e) -> String(list_to_string(e))
+
+  let rec nt_sexpr_comment =
+    fun x ->    
+      pack (caten (make_spaced (word "#;")) 
+            (caten (disj nt_sexpr_comment (pack nt_epsilon (fun _ -> ""))) nt_sexpr))
+            (fun _ -> "")
+    x;;
+    *)
+
+
   let rec nt_list_pair s= 
     let lParen = (make_spaced (char '(')) in 
     let rParen = (make_spaced (char ')')) in
@@ -273,7 +302,7 @@ module Tester = struct
     nt_number_scientific_notation;nt_string;nt_symbols;nt_list_pair;nt_dotted_list_pair;
     nt_quoted;nt_qquoted;nt_unquoted;nt_unquoted_spliced] s;; 
 
-    
+    (*    S -> #;(S | nt_epsilon)sexpr    *)
     let rec nt_sexpr_comment =
       fun x ->    
         pack (caten (make_spaced (word "#;")) 
