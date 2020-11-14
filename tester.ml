@@ -75,29 +75,16 @@ module Tester = struct
   let tok_semicolun = make_spaced ( char ';');;
   
   (* ToDo: fix this nt after String/char is completed *)
-  let nt_end_of_line = nt_epsilon;;
+  
   
   let nt_body = const (fun ch -> ch = 'b');;
   let nt_end = const (fun ch -> ch = 'e');;
 
   (* ToDo: change nt_whitespace and nt_end to read_sexpr  *)
-  let rec nt_sexpr_comment s =    
-    pack (caten 
-          (make_spaced (word "#;")) 
-          (caten 
-            (disj (delayed (fun _ -> nt_sexpr_comment))
-                  (pack nt_whitespaces (fun _ ->"")))
-            
-            nt_end))
-        (fun _ ->"") s ;;    
-            
-  let nt_line_comment s =
-    let nt_end_of_comment = disj nt_end_of_line nt_end_of_input in
-    let nt_line_comment = make_paired tok_semicolun nt_end_of_comment nt_characters in
-      pack nt_line_comment (fun _ ->"")s;;
+  (*    S -> #;(S | nt_epsilon)sexpr    *)
   
-  let nt_comment = disj nt_line_comment nt_sexpr_comment;;
-
+ 
+  
   let nt_boolean = pack (disj (make_spaced (word_ci "#t")) (make_spaced (word_ci "#f")))
     (function 
     | ['#'; 't'] -> Bool(true)
@@ -110,9 +97,11 @@ module Tester = struct
   let digit = range '0' '9';;
   let digits = plus digit;;
 
-  let tok_int = caten 
-                (maybe (disj (make_left_spaced (char '+')) (make_left_spaced (char '-'))))
-                digits;;
+  let tok_int = 
+    let nt =caten 
+              (maybe (disj (make_left_spaced (char '+')) (make_left_spaced (char '-'))))
+              digits
+        in make_spaced nt;;
 
   let nt_int = pack tok_int
     (function
@@ -148,8 +137,21 @@ module Tester = struct
 
   
   let nt_number = pack (disj_list [nt_fraction;nt_float;nt_int]) 
-                  (function (e) -> Number(e));;
+                  (function (e) -> Number(e));; 
 
+   
+   let nt_number_scientific_notation = 
+    let nt = caten (disj nt_float nt_int) (caten (char_ci 'e') nt_int) in
+    let nt = pack nt 
+      (function 
+        | (Fraction(e1,_),(_,Float(e2))) -> raise X_no_match
+        | (Float(e1),(_,Float(e2))) -> raise X_no_match
+        | (Float(n1) , (_,Fraction(n2,_))) -> Number(Float(n1*.(10.0**float_of_int(n2)))) 
+        | (Fraction(n1,_) , (_,Fraction(n2,_))) -> Number(Float(float_of_int(n1)*.(10.0**float_of_int(n2)))))
+      in (disj nt nt_number) ;;
+      
+                           
+                  
   let letter_lowercase = range 'a' 'z';;
   let letter_uppercase = pack (range 'A' 'Z') (function (e) -> lowercase_ascii e);;
   (* map char string: *)
@@ -162,8 +164,11 @@ module Tester = struct
                               else e);; 
                               
   (* ⟨SymbolCharNoDot⟩ | ⟨SymbolChar⟩+ *)
-  let nt_symbols = pack (disj tok_char_not_dot (plus tok_symbol_char))
-                          (function (e)-> Symbol(list_to_string e));;
+  let nt_symbols = 
+     let nt = pack (disj tok_char_not_dot (plus tok_symbol_char))
+                          (function (e)-> Symbol(list_to_string e)) in
+        make_spaced nt;;
+                    
                     
   
   (* ⟨String⟩ ::= " ⟨StringChar⟩∗ " *)
@@ -187,7 +192,7 @@ module Tester = struct
     let nt_named_chars = disj_list (List.map word_ci 
                                           ["#\\nul";"#\\newline";"#\\return";"#\\tab";"#\\page";"#\\space"]) in 
                                         
-    let nt_named_chars = pack nt_named_chars list_to_string in 
+    let nt_named_chars = pack (make_spaced nt_named_chars) list_to_string in 
     let nt_named_chars = pack nt_named_chars
                   (function 
                     | "#\\nul" -> char_of_int 0
@@ -203,74 +208,106 @@ module Tester = struct
                               (function (_,e) -> e) in 
     pack (disj nt_named_chars nt_visble_char)
         (function (e) -> Char(e));;
-                                                                     
-  let nt_literal_char = const (fun ch -> ch != '\"' && ch != '\\'  && ch > ' ');;
+
+        let nt_literal_char = const (fun ch -> ch != '\"' && ch != '\\'  && ch >= ' ');;
   (* String -> "(StringliteralChar | StringMetaChar)* "  *)  
   (* ToDo: nt_string should work without removing (quote) from stringf meta char *)  
   let nt_string = 
-    let nt_string_quote = (make_spaced (char '\"')) in
+    let nt_left_string_quote = (make_left_spaced (char '\"')) in
+    let nt_right_string_quote =  (make_right_spaced (char '\"')) in
     let nt_string_char = star (disj nt_literal_char nt_meta_char) in 
-    let nt  = pack (caten nt_string_quote (caten nt_string_char nt_string_quote))
+    let nt  = pack (caten nt_left_string_quote (caten nt_string_char nt_right_string_quote))
                    (function (quote_start,(body,quote_end)) -> String (list_to_string body)) in
         nt;;
-   
-        
-  let nt_nil = 
-    let lParen = (make_spaced (char '(')) in 
-    let rParen = (make_spaced (char ')')) in  
-      pack (caten lParen (caten (maybe nt_comment) rParen))
-           (function 
-            | (l, (Some(comment),r)) -> Nil
-            | (l, (None,r)) -> Nil);;
-                         
-(* ⟨Sexpr⟩ ::= ⟨Boolean⟩ | ⟨Char⟩ | ⟨Number⟩ | ⟨String⟩
-  | ⟨Symbol⟩ | ⟨List⟩ | ⟨DottedList⟩ | ⟨Quoted⟩
-  | ⟨QuasiQuoted⟩ | ⟨Unquoted⟩
-  | ⟨UnquoteAndSpliced⟩ *)
-  
-  let nt_sexpr = disj_list [nt_boolean;nt_char;nt_number;nt_string;nt_symbols];; 
-
-  let read_sexprs_test string = 
-    let nt = star nt_sexpr  in 
-      let (e,s) = nt (string_to_list string) in
-        e;;
-
-  let nt_list_pair = 
+                           
+  let rec nt_list_pair s= 
     let lParen = (make_spaced (char '(')) in 
     let rParen = (make_spaced (char ')')) in
     let nt = star nt_sexpr in 
-      pack (caten lParen (caten nt rParen))
-            (function 
-            (_, (sexp_list, _)) -> 
-              List.fold_right
-                (fun a b -> Pair(a,b))
-                sexp_list
-                Nil);;
+    let packed =  pack (caten lParen (caten nt rParen))
+                  (function 
+                  (_, (sexp_list, _)) -> 
+                    List.fold_right
+                      (fun a b -> Pair(a,b))
+                      sexp_list
+                      Nil) in
+                  packed s
 
     (* ToDo: update pair the will work with nested () *)      
-    let nt_dotted_list_pair = 
-      let lParen = (make_spaced (char '(')) in 
-      let rParen = (make_spaced (char ')')) in
-      let dot = (make_spaced (char '.')) in
-        let nt = caten (plus nt_sexpr) (caten dot nt_sexpr) in 
-          pack (caten lParen (caten nt rParen))
-                (function
-                (_,((sexpr_list , (_ , sexpr)) , _)) -> 
-                  List.fold_right
-                    (fun a b -> Pair(a,b))
-                    sexpr_list
-                    (Pair(sexpr,Nil)));;
-                            
-    let nt_make_quote nt str = 
-      let nt_q = caten nt nt_sexpr in 
-        pack nt_q (function (_,sexpr) -> Pair(Symbol(str),Pair(sexpr,Nil)));;
-   
-                    
-    let nt_quoted = nt_make_quote (make_spaced (char '\'')) "Quoted" ;; 
-    let nt_qquoted = nt_make_quote (make_spaced (char '`')) "QQuoted" ;;
-    let nt_unquoted = nt_make_quote (make_spaced (char ',')) "Unquoted" ;;
-    let nt_unquoted_spliced = nt_make_quote (make_spaced (word ",@")) "UnquotedSpliced" ;;
+  and nt_dotted_list_pair s= 
+    let lParen = (make_spaced (char '(')) in 
+    let rParen = (make_spaced (char ')')) in
+    let dot = (make_spaced (char '.')) in
+    let nt = caten (plus nt_sexpr) (caten dot nt_sexpr) in 
+     let packed =  pack (caten lParen (caten nt rParen))
+                    (function
+                    (_,((sexpr_list , (_ , sexpr)) , _)) -> 
+                      List.fold_right
+                        (fun a b -> Pair(a,b))
+                        sexpr_list
+                        (Pair(sexpr,Nil))) in
+                    packed s
+                                
+    and nt_make_quote nt_char str s= 
+      let nt_q = caten nt_char nt_sexpr in 
+      let packed = pack nt_q (function (_,sexpr) -> Pair(Symbol(str),sexpr)) in
+      packed s
+    
+    and nt_make_quote2 nt_word str s= 
+      let nt_q = caten nt_word nt_sexpr in 
+      let packed = pack nt_q (function (_,sexpr) -> Pair(Symbol(str),sexpr)) in
+      packed s
       
+
+    and nt_quoted s = nt_make_quote (make_spaced (char '\'')) "Quoted" s 
+    and nt_qquoted s = nt_make_quote (make_spaced (char '`')) "QQuoted" s
+    and nt_unquoted s = nt_make_quote (make_spaced (char ',')) "Unquoted" s 
+    and nt_unquoted_spliced s= nt_make_quote2 (make_spaced (word ",@")) "UnquotedSpliced" s 
+                                              
+    (* ⟨Sexpr⟩ ::= ⟨Boolean⟩ | ⟨Char⟩ | ⟨Number⟩ | ⟨String⟩
+  | ⟨Symbol⟩ | ⟨List⟩ | ⟨DottedList⟩ | ⟨Quoted⟩
+  | ⟨QuasiQuoted⟩ | ⟨Unquoted⟩
+  | ⟨UnquoteAndSpliced⟩ *)
+
+    and nt_sexpr s= disj_list [nt_boolean;nt_char;
+    nt_number_scientific_notation;nt_string;nt_symbols;nt_list_pair;nt_dotted_list_pair;
+    nt_quoted;nt_qquoted;nt_unquoted;nt_unquoted_spliced] s;; 
+
+    
+    let rec nt_sexpr_comment =
+      fun x ->    
+        pack (caten (make_spaced (word "#;")) 
+              (caten (disj nt_sexpr_comment (pack nt_epsilon (fun _ -> ""))) nt_sexpr))
+             (fun _ -> "")
+      x;;
+    
+      (* (pack (char '\n') (function (_) -> [])) *)
+    let nt_end_of_line = (pack (char '\n') (function (_) -> []));;
+      
+    let nt_line_comment =
+      let nt_end_of_comment = disj nt_end_of_line nt_end_of_input in
+      let nt_line_comment = make_paired tok_semicolun nt_end_of_comment nt_characters in
+        pack nt_line_comment (fun _ ->"");;
+    
+    let nt_comment = disj nt_line_comment nt_sexpr_comment;;
+  
+    let nt_nil = 
+      let lParen = (make_spaced (char '(')) in 
+      let rParen = (make_spaced (char ')')) in  
+        pack (caten lParen (caten (maybe nt_comment) rParen))
+             (function 
+              | (l, (Some(comment),r)) -> Nil
+              | (l, (None,r)) -> Nil);;
+    
+
+    let read_sexprs_test string = 
+      let nt = star nt_sexpr  in 
+        let (e,s) = nt (string_to_list string) in
+          e;;
+    
+
+    
+    
      (* ToDo: check if Case sensiticty is already implemented*)
 
   
@@ -285,8 +322,6 @@ module Tester = struct
 
      
 
-
-  
 end;;
 
 open Tester;;
