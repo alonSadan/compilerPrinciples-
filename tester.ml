@@ -66,15 +66,11 @@ module Tester = struct
   let make_left_spaced nt = make_paired nt_whitespaces nt_epsilon nt;;
   let make_right_spaced nt = make_paired nt_epsilon nt_whitespaces nt;;
 
-  
+  (* (pack (char '\n') (function (_) -> [])) *)
+  let nt_end_of_line = (pack (char '\n') (function (_) -> []));;
+    
   let tok_semicolun = make_spaced ( char ';');;
-  
-  
-  
-  
-  
- 
-  
+   
   let nt_boolean = pack (disj (make_spaced (word_ci "#t")) (make_spaced (word_ci "#f")))
     (function 
     | ['#'; 't'] -> Bool(true)
@@ -108,57 +104,59 @@ module Tester = struct
       match b with 
         | 0 -> a
         | b -> gcd b (a mod b) in
+    let abs = fun x -> if x < 0 then -x else x in
     let frac = caten (caten tok_int (char '/')) digits in 
+    let frac = make_spaced frac in
     let frac = pack frac 
         (function 
          | (((Some(sign),a),_),b) -> (int_of_list (sign::a),int_of_list b) 
          | (((_,a),_),b) -> (int_of_list a,int_of_list b)) in
-      pack frac (function (a,b) -> 
-                  if a < 0 then Fraction(-1 * (a / (gcd a b)),-1 * (b / (gcd a b))) 
-                  else Fraction(a / (gcd a b),b / (gcd a b)));; 
+      pack frac (function (a,b) ->
+                  let g = abs (gcd a b) in 
+                  Fraction(a/g, b/g));; 
 
   let float_of_list ds = float_of_string(list_to_string ds);;
   let nt_float = 
-    let fl = pack (caten tok_int (caten (char '.') digits))
+    let fl = caten tok_int (caten (char '.') digits) in
+    let fl = pack (make_spaced fl)
             (function 
               | ((Some(sign),numberA),(point,numberB)) -> (sign::numberA)@[point]@numberB
               | ((_,numberA),(point,numberB)) -> numberA@[point]@numberB) in
           pack fl (function (e)->Float(float_of_list e));;
 
   
-  let nt_number = pack (disj_list [nt_fraction;nt_float;nt_int]) 
-                  (function (e) -> Number(e));; 
+  let nt_number = pack (disj_list [nt_fraction;nt_float;nt_int]) (function (e) -> Number(e));; 
 
-   
-   let nt_number_scientific_notation = 
+
+  let nt_number_scientific_notation = 
     let nt = caten (disj nt_float nt_int) (caten (char_ci 'e') nt_int) in
     let nt = pack nt 
       (function 
-        | (Fraction(e1,_),(_,Float(e2))) -> raise X_no_match
-        | (Float(e1),(_,Float(e2))) -> raise X_no_match
-        | (Float(n1) , (_,Fraction(n2,_))) -> Number(Float(n1*.(10.0**float_of_int(n2)))) 
-        | (Fraction(n1,_) , (_,Fraction(n2,_))) -> Number(Float(float_of_int(n1)*.(10.0**float_of_int(n2)))))
+      | (Fraction(e1,_),(_,Float(e2))) -> raise X_no_match
+      | (Float(e1),(_,Float(e2))) -> raise X_no_match
+      | (Float(n1) , (_,Fraction(n2,_))) -> Number(Float(n1*.(10.0**float_of_int(n2)))) 
+      | (Fraction(n1,_) , (_,Fraction(n2,_))) -> Number(Float(float_of_int(n1)*.(10.0**float_of_int(n2)))))
       in (disj nt nt_number) ;;
-      
+
                            
                   
-  let letter_lowercase = range 'a' 'z';;
-  let letter_uppercase = pack (range 'A' 'Z') (function (e) -> lowercase_ascii e);;
-  (* map char string: *)
-  let punctuation = one_of "!$^*-_=+<>/?";; 
-  
-  let tok_symbol_char = disj_list [digit;letter_lowercase;letter_uppercase;punctuation];;
-  let tok_char_not_dot = pack (plus (char '.'))
-                            (function (e) -> 
-                              if List.length e = 1 then raise X_no_match
-                              else e);; 
-                              
-  (* ⟨SymbolCharNoDot⟩ | ⟨SymbolChar⟩+ *)
-  let nt_symbols = 
-     let nt = pack (disj tok_char_not_dot (plus tok_symbol_char))
-                          (function (e)-> Symbol(list_to_string e)) in
-        make_spaced nt;;
-                    
+      let letter_lowercase = range 'a' 'z';;
+      let letter_uppercase = pack (range 'A' 'Z') (function (e) -> lowercase_ascii e);;
+      (* map char string: *)
+      let punctuation = one_of "!$^*-_=+<>/?:";; 
+      let tok_dot = char '.';;
+      let tok_char_not_dot = disj_list [digit;letter_lowercase;letter_uppercase;punctuation];;
+      let tok_symbol_char = disj tok_char_not_dot tok_dot
+    
+     
+      (* ⟨Symbol⟩ ::= ⟨SymbolCharNoDot⟩ | ⟨SymbolChar⟩⟨SymbolChar⟩+ *)
+      let nt_symbols = 
+        let nt1 = pack tok_char_not_dot (function (e) -> [e]) in 
+        let nt2 = pack (caten tok_symbol_char (plus tok_symbol_char)) (function (ch,ch_list) -> [ch]@ch_list) in 
+        let nt = pack (disj nt2 nt1)
+                      (function (e)-> Symbol(list_to_string e)) in
+          make_spaced nt;;
+                      
                     
   
   (* ⟨String⟩ ::= " ⟨StringChar⟩∗ " *)
@@ -170,7 +168,7 @@ module Tester = struct
 
   
   
-  let nt_char = 
+   let nt_char = 
     let nt_named_chars = disj_list (List.map word_ci 
                                           ["#\\nul";"#\\newline";"#\\return";"#\\tab";"#\\page";"#\\space"]) in 
                                         
@@ -186,7 +184,7 @@ module Tester = struct
                     | _ -> raise  X_no_match
                   ) in 
     let nt_visble_char = const (fun ch -> ch > ' ') in 
-    let nt_visble_char = pack (caten (make_left_spaced (word "#\\")) nt_visble_char)
+    let nt_visble_char = pack (make_spaced (caten (make_left_spaced (word "#\\")) nt_visble_char))
                               (function (_,e) -> e) in 
     pack (disj nt_named_chars nt_visble_char)
         (function (e) -> Char(e));;
@@ -216,44 +214,15 @@ module Tester = struct
                    (function (quote_start,(body,quote_end)) -> String (list_to_string body)) in
         nt;;
 
-  (* let nt_string =
-    let rec nt_make_string ()=     
-      let nt_left_string_quote = (make_left_spaced (char '\"')) in
-      let nt_right_string_quote =  (make_right_spaced (char '\"')) in
-      let nt_string_char = plus (disj nt_literal_char nt_meta_char) in 
-      pack (caten nt_left_string_quote 
-              (caten (disj nt_string_char (disj (delayed nt_make_string) 
-                                                pack nt_epsilon (fun _->[]) ))
-              nt_right_string_quote))
-                   (function (quote_start,(body,quote_end)) ->   body)
-    in
-    pack (nt_make_string ()) (function (e) -> []);;
-   *)
+  let nt_symbols_or_number s = 
+    let (e1,es1) = (nt_symbols s) in
+    try let (e2,es2) = (nt_number_scientific_notation s) in
+    let nt =  
+      if (List.length es1) < (List.length es2) then nt_symbols else nt_number_scientific_notation in
+    nt s
+    with X_no_match -> nt_symbols s;;
     
-
-(*    let nt_string =
-    let nt_left_string_quote = (make_left_spaced (char '\"')) in
-    let nt_right_string_quote =  (make_right_spaced (char '\"')) in
-    let nt_string_char = plus (disj nt_literal_char nt_meta_char) in 
-    let rec nt_make_string =     
-    fun x -> 
-      pack (caten nt_left_string_quote 
-              (caten (disj nt_string_char (disj (nt_make_string) 
-                                                pack nt_epsilon (fun _->"") ))
-              nt_right_string_quote))
-                    (function (quote_start,(body,quote_end)) ->   body)
-    x in
-    pack nt_string (function (e) -> String(list_to_string(e))
-
-  let rec nt_sexpr_comment =
-    fun x ->    
-      pack (caten (make_spaced (word "#;")) 
-            (caten (disj nt_sexpr_comment (pack nt_epsilon (fun _ -> ""))) nt_sexpr))
-            (fun _ -> "")
-    x;;
-    *)
-
-
+      
   let rec nt_list_pair s= 
     let lParen = (make_spaced (char '(')) in 
     let rParen = (make_spaced (char ')')) in
@@ -284,60 +253,70 @@ module Tester = struct
                                 
     and nt_make_quote nt_char str s= 
       let nt_q = caten nt_char nt_sexpr in 
-      let packed = pack nt_q (function (_,sexpr) -> Pair(Symbol(str),sexpr)) in
+      let packed = pack nt_q (function
+                                | (_,Pair(sexpr1,sexprs2)) -> Pair(Symbol(str),Pair(sexpr1,sexprs2))
+                                | (_,sexpr) -> Pair(Symbol(str),Pair(sexpr,Nil))) in
       packed s
     
     and nt_make_quote2 nt_word str s= 
       let nt_q = caten nt_word nt_sexpr in 
-      let packed = pack nt_q (function (_,sexpr) -> Pair(Symbol(str),sexpr)) in
+      let packed = pack nt_q (function
+                                | (_,Pair(sexpr1,sexprs2)) -> Pair(Symbol(str),Pair(sexpr1,sexprs2))
+                                | (_,sexpr) -> Pair(Symbol(str),Pair(sexpr,Nil))) in
       packed s
       
 
-    and nt_quoted s = nt_make_quote (make_spaced (char '\'')) "Quoted" s 
-    and nt_qquoted s = nt_make_quote (make_spaced (char '`')) "QQuoted" s
-    and nt_unquoted s = nt_make_quote (make_spaced (char ',')) "Unquoted" s 
-    and nt_unquoted_spliced s= nt_make_quote2 (make_spaced (word ",@")) "UnquotedSpliced" s 
+    and nt_quoted s = nt_make_quote (make_spaced (char '\'')) "quote" s 
+    and nt_qquoted s = nt_make_quote (make_spaced (char '`')) "quasiquote" s
+    and nt_unquoted s = nt_make_quote (make_spaced (char ',')) "unquote" s 
+    and nt_unquoted_spliced s= nt_make_quote2 (make_spaced (word ",@")) "unquote-splicing" s 
                                               
     (* ⟨Sexpr⟩ ::= ⟨Boolean⟩ | ⟨Char⟩ | ⟨Number⟩ | ⟨String⟩
   | ⟨Symbol⟩ | ⟨List⟩ | ⟨DottedList⟩ | ⟨Quoted⟩
   | ⟨QuasiQuoted⟩ | ⟨Unquoted⟩
   | ⟨UnquoteAndSpliced⟩ *)
 
-    and nt_sexpr s= disj_list [nt_boolean;nt_char;
-    nt_number_scientific_notation;nt_string;nt_symbols;nt_list_pair;nt_dotted_list_pair;
-    nt_quoted;nt_qquoted;nt_unquoted;nt_unquoted_spliced] s;; 
-
+   and nt_line_comment s=
+    let nt_end_of_comment = disj nt_end_of_line nt_end_of_input in
+    let nt_line_comment = make_paired tok_semicolun nt_end_of_comment nt_characters in
+      (pack nt_line_comment (fun _ ->"")) s
+    
+  
     (*    S -> #;(S | nt_epsilon)sexpr    *)
-    let rec nt_sexpr_comment =
+    and nt_sexpr_comment s=
+    let nt = 
       fun x ->    
         pack (caten (make_spaced (word "#;")) 
               (caten (disj nt_sexpr_comment (pack nt_epsilon (fun _ -> ""))) nt_sexpr))
              (fun _ -> "")
-      x;;
+      x in 
+      nt s
     
-      (* (pack (char '\n') (function (_) -> [])) *)
-    let nt_end_of_line = (pack (char '\n') (function (_) -> []));;
-      
-    let nt_line_comment =
-      let nt_end_of_comment = disj nt_end_of_line nt_end_of_input in
-      let nt_line_comment = make_paired tok_semicolun nt_end_of_comment nt_characters in
-        pack nt_line_comment (fun _ ->"");;
-    
-    let nt_comment = disj nt_line_comment nt_sexpr_comment;;
+
+    and nt_comment s= (disj nt_line_comment nt_sexpr_comment) s
+
+    and nt_nil s= 
+    let lParen = (make_spaced (char '(')) in 
+    let rParen = (make_spaced (char ')')) in  
+    let packed = pack (caten lParen (caten (star nt_comment) rParen)) 
+                (function _ -> Nil) in
+    packed s
   
-    let nt_nil = 
-      let lParen = (make_spaced (char '(')) in 
-      let rParen = (make_spaced (char ')')) in  
-        pack (caten lParen (caten (maybe nt_comment) rParen))
-             (function 
-              | (l, (Some(comment),r)) -> Nil
-              | (l, (None,r)) -> Nil);;
+  
+    and nt_sexpr s= disj_list [nt_boolean;nt_char;
+    nt_symbols_or_number;nt_string;nt_list_pair;nt_dotted_list_pair;
+    nt_quoted;nt_qquoted;nt_unquoted;nt_unquoted_spliced;nt_nil] s;; 
+
+    
+      
     
 
     let read_sexprs_test string = 
-      let nt = star nt_sexpr  in 
+      let nt =  nt_sexpr  in 
         let (e,s) = nt (string_to_list string) in
-          e;;
+          match e,s with 
+            | e,[] -> [e]
+            | _ -> raise X_no_match
     
 
     

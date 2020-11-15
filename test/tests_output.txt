@@ -1,0 +1,274 @@
+        OCaml version 4.05.0
+
+# val ormap : ('a -> bool) -> 'a list -> bool = <fun>
+val andmap : ('a -> bool) -> 'a list -> bool = <fun>
+val lowercase_ascii : char -> char = <fun>
+val string_to_list : string -> char list = <fun>
+val list_to_string : char list -> string = <fun>
+module PC :
+  sig
+    exception X_not_yet_implemented
+    exception X_no_match
+    val const : ('a -> bool) -> 'a list -> 'a * 'a list
+    val caten : ('a -> 'b * 'c) -> ('c -> 'd * 'e) -> 'a -> ('b * 'd) * 'e
+    val pack : ('a -> 'b * 'c) -> ('b -> 'd) -> 'a -> 'd * 'c
+    val nt_epsilon : 'a -> 'b list * 'a
+    val caten_list : ('a -> 'b * 'a) list -> 'a -> 'b list * 'a
+    val disj : ('a -> 'b) -> ('a -> 'b) -> 'a -> 'b
+    val nt_none : 'a -> 'b
+    val disj_list : ('a -> 'b) list -> 'a -> 'b
+    val delayed : (unit -> 'a -> 'b) -> 'a -> 'b
+    val nt_end_of_input : 'a list -> 'b list * 'c list
+    val star : ('a -> 'b * 'a) -> 'a -> 'b list * 'a
+    val plus : ('a -> 'b * 'a) -> 'a -> 'b list * 'a
+    val guard : ('a -> 'b * 'c) -> ('b -> bool) -> 'a -> 'b * 'c
+    val diff : ('a -> 'b) -> ('a -> 'c) -> 'a -> 'b
+    val not_followed_by : ('a -> 'b * 'c) -> ('c -> 'd) -> 'a -> 'b * 'c
+    val maybe : ('a -> 'b * 'a) -> 'a -> 'b option * 'a
+    val make_char : ('a -> 'b -> bool) -> 'a -> 'b list -> 'b * 'b list
+    val char : char -> char list -> char * char list
+    val char_ci : char -> char list -> char * char list
+    val make_word : (char -> 'a -> 'b * 'a) -> string -> 'a -> 'b list * 'a
+    val word : string -> char list -> char list * char list
+    val word_ci : string -> char list -> char list * char list
+    val make_one_of : (char -> 'a -> 'b) -> string -> 'a -> 'b
+    val one_of : string -> char list -> char * char list
+    val one_of_ci : string -> char list -> char * char list
+    val nt_whitespace : char list -> char * char list
+    val make_range :
+      (char -> char -> bool) -> char -> char -> char list -> char * char list
+    val range : char -> char -> char list -> char * char list
+    val range_ci : char -> char -> char list -> char * char list
+    val nt_any : char list -> char * char list
+    val trace_pc :
+      string -> (char list -> 'a * char list) -> char list -> 'a * char list
+    val test_string : (char list -> 'a * char list) -> string -> 'a * string
+  end
+exception X_not_yet_implemented
+exception X_this_should_not_happen
+type number = Fraction of int * int | Float of float
+type sexpr =
+    Bool of bool
+  | Nil
+  | Number of number
+  | Char of char
+  | String of string
+  | Symbol of string
+  | Pair of sexpr * sexpr
+val sexpr_eq : sexpr -> sexpr -> bool = <fun>
+module Reader : sig val read_sexprs : string -> sexpr list end
+[1mFile "[1m../tester.ml", line 306, characters 49-56[0m[0m:
+[1;31mError[0m: This expression has type char list -> sexpr * char list
+       but an expression was expected of type
+         char list -> sexpr list * char list
+       Type sexpr is not compatible with type sexpr list 
+# [A# open [4mTester[24m;;
+[24m[1;31mError[0m: Unbound module Tester
+#       [A[A[A[A# 
+  let read_and_print s = 
+      Printf.printf "======\nRead input:{%s}\n" s;
+      [4mread_sexprs_test[24m s;;
+[24m[1;31mError[0m: Unbound value read_sexprs_test
+#   [A[A# 
+  [4mread_and_print[24m "1";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "  1";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "  1  ";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "01234";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "001234";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "-12";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "-012";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "+1234";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "+00940";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "1/1";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "2/4";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "-17/6";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "+006/012";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "+1e1";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "1E+1";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "10e-1";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "3.14e+9";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "3.14E-512";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "+0000012.3E0000000000002";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "-5.000000e-2";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "+5.000000e1";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "1.0";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "  1.0  ";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "005.01290";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "501.000000";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "+999.009000";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "-001.000123000";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "#t";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "#f";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "#t#t";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m " #t #t";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "1a^";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m " 1a^   ";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "1a<:";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "AbC";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "a1+3====1.1";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "..";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "..123Ac^";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# ([4mread_and_print[24m "..123Ac^") = (read_and_print "..123ac^");;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "\"\"";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "\"    \"";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "   \"\"    ";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "\"hello . ^ . \"";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "\"hello . ^ [] ; a {} #@\"";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "\"\\r\"";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "\"\\n\"";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "\"\\t\"";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "\"\\f\"";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "\"\\\\\"";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "#\\a";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "   #\\a ";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "#\\A";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# ([4mread_and_print[24m "#\\a") <> (read_and_print "#\\A");;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "#\\nul";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "#\\newline";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "#\\return";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "#\\tab";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "#\\page";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "#\\space";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "'1";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "'3+2";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "'(a 1 . a)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "`1";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "`3+2";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "`(a 1 . a)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m ",1";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m ",3+2";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m ",(a 1 . a)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "`'(1)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "`(1 ,@(+ 1 2))";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "(   1 )";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "(1 2 \"a\")";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "(1aC +2.3e1 \"a\")";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "(1 . 2)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "(#t . #\\A)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "(\"#tab hello\" #t . #\\A)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "(a a a)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "(a a a `(1 . '(#\\tab abC . 3))) (+ 1 2)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "()";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "(    )";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "( ;comment\n ;comment\n)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "( ;comment\n ;comment\n a)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "( ;comment\n ;comment\n #;(+ 1 2) a)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "    ;commnet\n #;(()) '  ;c\n  #;5.2 hello ";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#   [A[A# 
+  [4mread_and_print[24m "(a);quasiqute next line\n`(a 'hello . ,@(+ 1 2))";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "  ;\n   #;() (   ;commnet\n #;(()) '  ;c\n  #;5.2 hello  #;1 ;;;;\n   #;aaa bbb\"aa\"#t  .  64.0 ;ccc\n #;aa ) ";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "  ; \n #;11 (     #;#;#;aa\"a\"(#t#f\"b\")    ;gggg\n   ;\n #;1 ;\n    ;;;\n ;\n #;#;a 11 )";;
+[24m[1;31mError[0m: Unbound value read_and_print
+#         [A[A[A[A[A# 
+  
+  Printf.printf "\n===========\nThose need to be excptions\n\n";
+  
+  [4mread_and_print[24m ".";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "#ta";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "\"\\\"";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# [A# [4mread_and_print[24m "(1 . 2 . 3)";;
+[24m[1;31mError[0m: Unbound value read_and_print
+# 

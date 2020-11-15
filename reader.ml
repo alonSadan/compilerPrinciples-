@@ -58,8 +58,7 @@ let normalize_scheme_symbol str =
 
   
   let tok_semicolun = make_spaced ( char ';');;
-  
-
+   
   let nt_boolean = pack (disj (make_spaced (word_ci "#t")) (make_spaced (word_ci "#f")))
     (function 
     | ['#'; 't'] -> Bool(true)
@@ -93,14 +92,15 @@ let normalize_scheme_symbol str =
       match b with 
         | 0 -> a
         | b -> gcd b (a mod b) in
+    let abs = fun x -> if x < 0 then -x else x in
     let frac = caten (caten tok_int (char '/')) digits in 
     let frac = pack frac 
         (function 
          | (((Some(sign),a),_),b) -> (int_of_list (sign::a),int_of_list b) 
          | (((_,a),_),b) -> (int_of_list a,int_of_list b)) in
-      pack frac (function (a,b) -> 
-                  if a < 0 then Fraction(-1 * (a / (gcd a b)),-1 * (b / (gcd a b))) 
-                  else Fraction(a / (gcd a b),b / (gcd a b)));; 
+      pack frac (function (a,b) ->
+                  let g = abs (gcd a b) in 
+                  Fraction(a/g, b/g));; 
 
   let float_of_list ds = float_of_string(list_to_string ds);;
   let nt_float = 
@@ -111,39 +111,38 @@ let normalize_scheme_symbol str =
           pack fl (function (e)->Float(float_of_list e));;
 
   
-  let nt_number = pack (disj_list [nt_fraction;nt_float;nt_int]) 
-                  (function (e) -> Number(e));; 
+  let nt_number = pack (disj_list [nt_fraction;nt_float;nt_int]) (function (e) -> Number(e));; 
 
-   
-   let nt_number_scientific_notation = 
+
+  let nt_number_scientific_notation = 
     let nt = caten (disj nt_float nt_int) (caten (char_ci 'e') nt_int) in
     let nt = pack nt 
       (function 
-        | (Fraction(e1,_),(_,Float(e2))) -> raise X_no_match
-        | (Float(e1),(_,Float(e2))) -> raise X_no_match
-        | (Float(n1) , (_,Fraction(n2,_))) -> Number(Float(n1*.(10.0**float_of_int(n2)))) 
-        | (Fraction(n1,_) , (_,Fraction(n2,_))) -> Number(Float(float_of_int(n1)*.(10.0**float_of_int(n2)))))
+      | (Fraction(e1,_),(_,Float(e2))) -> raise X_no_match
+      | (Float(e1),(_,Float(e2))) -> raise X_no_match
+      | (Float(n1) , (_,Fraction(n2,_))) -> Number(Float(n1*.(10.0**float_of_int(n2)))) 
+      | (Fraction(n1,_) , (_,Fraction(n2,_))) -> Number(Float(float_of_int(n1)*.(10.0**float_of_int(n2)))))
       in (disj nt nt_number) ;;
-      
+
                            
                   
-  let letter_lowercase = range 'a' 'z';;
-  let letter_uppercase = pack (range 'A' 'Z') (function (e) -> lowercase_ascii e);;
-  (* map char string: *)
-  let punctuation = one_of "!$^*-_=+<>/?";; 
-  
-  let tok_symbol_char = disj_list [digit;letter_lowercase;letter_uppercase;punctuation];;
-  let tok_char_not_dot = pack (plus (char '.'))
-                            (function (e) -> 
-                              if List.length e = 1 then raise X_no_match
-                              else e);; 
-                              
-  (* ⟨SymbolCharNoDot⟩ | ⟨SymbolChar⟩+ *)
-  let nt_symbols = 
-     let nt = pack (disj tok_char_not_dot (plus tok_symbol_char))
-                          (function (e)-> Symbol(list_to_string e)) in
-        make_spaced nt;;
-                    
+      let letter_lowercase = range 'a' 'z';;
+      let letter_uppercase = pack (range 'A' 'Z') (function (e) -> lowercase_ascii e);;
+      (* map char string: *)
+      let punctuation = one_of "!$^*-_=+<>/?:";; 
+      let tok_dot = make_spaced (char '.')
+      let tok_char_not_dot = disj_list [digit;letter_lowercase;letter_uppercase;punctuation];;
+      let tok_symbol_char = disj tok_char_not_dot tok_dot
+    
+     
+      (* ⟨Symbol⟩ ::= ⟨SymbolCharNoDot⟩ | ⟨SymbolChar⟩⟨SymbolChar⟩+ *)
+      let nt_symbols = 
+        let nt1 = pack tok_char_not_dot (function (e) -> [e]) in 
+        let nt2 = pack (caten tok_symbol_char (plus tok_symbol_char)) (function (ch,ch_list) -> [ch]@ch_list) in 
+        let nt = pack (disj nt2 nt1)
+                      (function (e)-> Symbol(list_to_string e)) in
+          make_spaced nt;;
+                      
                     
   
   (* ⟨String⟩ ::= " ⟨StringChar⟩∗ " *)
@@ -153,6 +152,8 @@ let normalize_scheme_symbol str =
     char 
    *)
 
+  
+  
   let nt_char = 
     let nt_named_chars = disj_list (List.map word_ci 
                                           ["#\\nul";"#\\newline";"#\\return";"#\\tab";"#\\page";"#\\space"]) in 
@@ -175,6 +176,7 @@ let normalize_scheme_symbol str =
         (function (e) -> Char(e));;
 
   let nt_literal_char = const (fun ch -> ch != '\"' && ch != '\\'  && ch >= ' ');;
+  (* \f is not  a valid special meta char in Ocaml - so we need to parse it differently*)
   let nt_meta_char = 
     let meta_chars = one_of  "\\\r\n\t" in
     let meta_chars_pair = pack (caten (char '\\') (one_of "rntf\"\\"))
@@ -187,9 +189,9 @@ let normalize_scheme_symbol str =
                                   | (_,'\\') -> char_of_int 92
                                   | _ -> raise X_no_match) in
     disj meta_chars_pair meta_chars;;
+  
   (* String -> "(StringliteralChar | StringMetaChar)* "  *)  
   (* ToDo: nt_string should work without removing (quote) from string meta char *)  
-
   let nt_string = 
     let nt_left_string_quote = (make_left_spaced (char '\"')) in
     let nt_right_string_quote =  (make_right_spaced (char '\"')) in
@@ -198,6 +200,15 @@ let normalize_scheme_symbol str =
                    (function (quote_start,(body,quote_end)) -> String (list_to_string body)) in
         nt;;
 
+  let nt_symbols_or_number s = 
+    let (e1,es1) = (nt_symbols s) in
+    try let (e2,es2) = (nt_number_scientific_notation s) in
+    let nt =  
+      if (List.length es1) < (List.length es2) then nt_symbols else nt_number_scientific_notation in
+    nt s
+    with X_no_match -> nt_symbols s;;
+    
+      
   let rec nt_list_pair s= 
     let lParen = (make_spaced (char '(')) in 
     let rParen = (make_spaced (char ')')) in
@@ -237,18 +248,20 @@ let normalize_scheme_symbol str =
       packed s
       
 
-    and nt_quoted s = nt_make_quote (make_spaced (char '\'')) "Quoted" s 
-    and nt_qquoted s = nt_make_quote (make_spaced (char '`')) "QQuoted" s
-    and nt_unquoted s = nt_make_quote (make_spaced (char ',')) "Unquoted" s 
-    and nt_unquoted_spliced s= nt_make_quote2 (make_spaced (word ",@")) "UnquotedSpliced" s 
+    and nt_quoted s = nt_make_quote (make_spaced (char '\'')) "quote" s 
+    and nt_qquoted s = nt_make_quote (make_spaced (char '`')) "quasiquote" s
+    and nt_unquoted s = nt_make_quote (make_spaced (char ',')) "unquote" s 
+    and nt_unquoted_spliced s= nt_make_quote2 (make_spaced (word ",@")) "unquote-splicing" s 
                                               
     (* ⟨Sexpr⟩ ::= ⟨Boolean⟩ | ⟨Char⟩ | ⟨Number⟩ | ⟨String⟩
   | ⟨Symbol⟩ | ⟨List⟩ | ⟨DottedList⟩ | ⟨Quoted⟩
   | ⟨QuasiQuoted⟩ | ⟨Unquoted⟩
   | ⟨UnquoteAndSpliced⟩ *)
 
+
+  
     and nt_sexpr s= disj_list [nt_boolean;nt_char;
-    nt_number_scientific_notation;nt_string;nt_symbols;nt_list_pair;nt_dotted_list_pair;
+    nt_symbols_or_number;nt_string;nt_list_pair;nt_dotted_list_pair;
     nt_quoted;nt_qquoted;nt_unquoted;nt_unquoted_spliced] s;; 
 
     (*    S -> #;(S | nt_epsilon)sexpr    *)
@@ -277,7 +290,6 @@ let normalize_scheme_symbol str =
               | (l, (Some(comment),r)) -> Nil
               | (l, (None,r)) -> Nil);;
     
-
     let read_sexprs string = 
       let nt = star nt_sexpr  in 
         let (e,s) = nt (string_to_list string) in
