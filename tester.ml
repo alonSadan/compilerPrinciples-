@@ -52,9 +52,6 @@ module Tester = struct
 
   let nt_whitespaces = star nt_whitespace;;
 
-  let nt_character = const (fun ch -> ch >= ' ');;
-  let nt_characters = star nt_character
-
   let make_paired nt_left nt_right nt =
     let nt = caten nt_left nt in
     let nt = pack nt (function (_, e) -> e) in
@@ -215,11 +212,15 @@ module Tester = struct
     nt s
     with X_no_match -> nt_symbols s;;
      *)
-  
+  (* let nt_character = const (fun ch -> ch >= ' ');;
+  let nt_characters = star nt_character *)
+   
   let nt_line_comment=
     let nt_end_of_comment = disj nt_end_of_line nt_end_of_input in
-    let nt_line_comment = make_paired tok_semicolun nt_end_of_comment nt_characters in
-    pack nt_line_comment (fun _ ->"")
+    (* let nt_line_comment = not_followed_by nt_any nt_end_of_comment in *)
+    let nt_comment_body = star (const (fun ch -> ch != '\n')) in
+    let nt_line_comment = caten  (make_left_spaced (char ';')) (caten nt_comment_body nt_end_of_comment) in
+    pack nt_line_comment (fun e -> "Comment")
     
 
   let lParen = (make_spaced (char '('));;
@@ -251,16 +252,14 @@ module Tester = struct
                                 
     and nt_make_quote nt_char str s= 
       let nt_q = caten nt_char nt_sexpr in 
-      let packed = pack nt_q (function
-                                | (_,Pair(sexpr1,sexprs2)) -> Pair(Symbol(str),Pair(sexpr1,sexprs2))
-                                | (_,sexpr) -> Pair(Symbol(str),Pair(sexpr,Nil))) in
+      let packed = pack nt_q (function (_,sexpr) -> 
+                                Pair(Symbol(str),Pair(sexpr,Nil))) in
       packed s
     
     and nt_make_quote2 nt_word str s= 
       let nt_q = caten nt_word nt_sexpr in 
-      let packed = pack nt_q (function
-                                | (_,Pair(sexpr1,sexprs2)) -> Pair(Symbol(str),Pair(sexpr1,sexprs2))
-                                | (_,sexpr) -> Pair(Symbol(str),Pair(sexpr,Nil))) in
+      let packed = pack nt_q (function(_,sexpr) -> 
+                                Pair(Symbol(str),Pair(sexpr,Nil))) in
       packed s
       
 
@@ -281,8 +280,8 @@ module Tester = struct
     let nt = 
       fun x ->    
         pack (caten (make_spaced (word "#;")) 
-              (caten (disj nt_sexpr_comment (pack nt_epsilon (fun _ -> ""))) nt_sexpr))
-             (fun _ -> "")
+              (caten (disj nt_sexpr_comment (pack nt_epsilon (fun _ -> "Comment"))) nt_sexpr))
+             (fun _ -> "Comment")
       x in 
       nt s
     
@@ -295,11 +294,11 @@ module Tester = struct
     packed s
 
     and nt_sexpr s= 
+      let (_,s) = ((star nt_comment) s) in 
       let nt_number_not_followed_symbol = 
         not_followed_by nt_number_scientific_notation 
                       (disj_list [letter_lowercase;letter_uppercase;punctuation]) in
-        (* this line removed because apparently (according to sahaf) #f1  is valid *)
-        (* let nt_boolean_not_followed_symbol = not_followed_by nt_boolean nt_symbols in *)
+        
         disj_list [
 
         nt_number_not_followed_symbol;

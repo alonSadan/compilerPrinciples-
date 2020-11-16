@@ -60,8 +60,6 @@ module Reader : sig val read_sexprs : string -> sexpr list end
 module Tester :
   sig
     val nt_whitespaces : char list -> char list * char list
-    val nt_character : char list -> char * char list
-    val nt_characters : char list -> char list * char list
     val make_paired :
       ('a -> 'b * 'c) -> ('d -> 'e * 'f) -> ('c -> 'g * 'd) -> 'a -> 'g * 'f
     val make_spaced :
@@ -308,7 +306,7 @@ Read input:{'3+2}
 Read input:{'(a 1 . a)}
 - : sexpr list =
 [Pair (Symbol "quote",
-  Pair (Symbol "a", Pair (Number (Fraction (1, 1)), Symbol "a")))]
+  Pair (Pair (Symbol "a", Pair (Number (Fraction (1, 1)), Symbol "a")), Nil))]
 #   ======
 Read input:{`1}
 - : sexpr list =
@@ -320,7 +318,7 @@ Read input:{`3+2}
 Read input:{`(a 1 . a)}
 - : sexpr list =
 [Pair (Symbol "quasiquote",
-  Pair (Symbol "a", Pair (Number (Fraction (1, 1)), Symbol "a")))]
+  Pair (Pair (Symbol "a", Pair (Number (Fraction (1, 1)), Symbol "a")), Nil))]
 #   ======
 Read input:{,1}
 - : sexpr list =
@@ -332,22 +330,29 @@ Read input:{,3+2}
 Read input:{,(a 1 . a)}
 - : sexpr list =
 [Pair (Symbol "unquote",
-  Pair (Symbol "a", Pair (Number (Fraction (1, 1)), Symbol "a")))]
+  Pair (Pair (Symbol "a", Pair (Number (Fraction (1, 1)), Symbol "a")), Nil))]
 #   ======
 Read input:{`'(1)}
 - : sexpr list =
 [Pair (Symbol "quasiquote",
-  Pair (Symbol "quote", Pair (Number (Fraction (1, 1)), Nil)))]
+  Pair
+   (Pair (Symbol "quote", Pair (Pair (Number (Fraction (1, 1)), Nil), Nil)),
+   Nil))]
 # ======
 Read input:{`(1 ,@(+ 1 2))}
 - : sexpr list =
 [Pair (Symbol "quasiquote",
-  Pair (Number (Fraction (1, 1)),
-   Pair
-    (Pair (Symbol "unquote-splicing",
-      Pair (Symbol "+",
-       Pair (Number (Fraction (1, 1)), Pair (Number (Fraction (2, 1)), Nil)))),
-    Nil)))]
+  Pair
+   (Pair (Number (Fraction (1, 1)),
+     Pair
+      (Pair (Symbol "unquote-splicing",
+        Pair
+         (Pair (Symbol "+",
+           Pair (Number (Fraction (1, 1)),
+            Pair (Number (Fraction (2, 1)), Nil))),
+         Nil)),
+      Nil)),
+   Nil))]
 #   ======
 Read input:{(   1 )}
 - : sexpr list = [Pair (Number (Fraction (1, 1)), Nil)]
@@ -381,9 +386,13 @@ Read input:{(a a a `(1 . '(#\tab abC . 3))) (+ 1 2)}
    Pair (Symbol "a",
     Pair
      (Pair (Symbol "quasiquote",
-       Pair (Number (Fraction (1, 1)),
-        Pair (Symbol "quote",
-         Pair (Char '\t', Pair (Symbol "abc", Number (Fraction (3, 1))))))),
+       Pair
+        (Pair (Number (Fraction (1, 1)),
+          Pair (Symbol "quote",
+           Pair
+            (Pair (Char '\t', Pair (Symbol "abc", Number (Fraction (3, 1)))),
+            Nil))),
+        Nil)),
      Nil))));
  Pair (Symbol "+",
   Pair (Number (Fraction (1, 1)), Pair (Number (Fraction (2, 1)), Nil)))]
@@ -402,21 +411,33 @@ Read input:{( ;comment
 Read input:{( ;comment
  ;comment
  a)}
-Exception: PC.X_no_match.
+- : sexpr list = [Pair (Symbol "a", Nil)]
 # ======
 Read input:{( ;comment
  ;comment
  #;(+ 1 2) a)}
-Exception: PC.X_no_match.
+- : sexpr list = [Pair (Symbol "a", Nil)]
 # ======
 Read input:{    ;commnet
  #;(()) '  ;c
   #;5.2 hello }
-Exception: PC.X_no_match.
+- : sexpr list = [Pair (Symbol "quote", Pair (Symbol "hello", Nil))]
 #   ======
 Read input:{(a);quasiqute next line
 `(a 'hello . ,@(+ 1 2))}
-Exception: PC.X_no_match.
+- : sexpr list =
+[Pair (Symbol "a", Nil);
+ Pair (Symbol "quasiquote",
+  Pair
+   (Pair (Symbol "a",
+     Pair (Pair (Symbol "quote", Pair (Symbol "hello", Nil)),
+      Pair (Symbol "unquote-splicing",
+       Pair
+        (Pair (Symbol "+",
+          Pair (Number (Fraction (1, 1)),
+           Pair (Number (Fraction (2, 1)), Nil))),
+        Nil)))),
+   Nil))]
 # ======
 Read input:{  ;
    #;() (   ;commnet
@@ -433,7 +454,7 @@ Read input:{  ;
     ;;;
  ;
  #;#;a 11 )}
-Exception: PC.X_no_match.
+- : sexpr list = [Nil]
 #         
 ===========
 Those need to be excptions
