@@ -57,62 +57,6 @@ type sexpr =
   | Pair of sexpr * sexpr
 val sexpr_eq : sexpr -> sexpr -> bool = <fun>
 module Reader : sig val read_sexprs : string -> sexpr list end
-module Tester :
-  sig
-    val nt_whitespaces : char list -> char list * char list
-    val make_paired :
-      ('a -> 'b * 'c) -> ('d -> 'e * 'f) -> ('c -> 'g * 'd) -> 'a -> 'g * 'f
-    val make_spaced :
-      (char list -> 'a * char list) -> char list -> 'a * char list
-    val make_left_spaced : (char list -> 'a * 'b) -> char list -> 'a * 'b
-    val make_right_spaced : ('a -> 'b * char list) -> 'a -> 'b * char list
-    val nt_end_of_line : char list -> 'a list * char list
-    val tok_semicolun : char list -> char * char list
-    val nt_boolean : char list -> sexpr * char list
-    val int_of_list : char list -> int
-    val digit : char list -> char * char list
-    val digits : char list -> char list * char list
-    val tok_int : char list -> (char option * char list) * char list
-    val nt_int : char list -> number * char list
-    val gcd1 : int -> int -> int
-    val nt_fraction : char list -> number * char list
-    val float_of_list : char list -> float
-    val nt_float : char list -> number * char list
-    val nt_number : char list -> sexpr * char list
-    val nt_number_scientific_notation : char list -> sexpr * char list
-    val letter_lowercase : char list -> char * char list
-    val letter_uppercase : char list -> char * char list
-    val punctuation : char list -> char * char list
-    val tok_dot : char list -> char * char list
-    val tok_char_not_dot : char list -> char * char list
-    val tok_symbol_char : char list -> char * char list
-    val nt_symbols : char list -> sexpr * char list
-    val nt_char : char list -> sexpr * char list
-    val nt_literal_char : char list -> char * char list
-    val nt_meta_char : char list -> char * char list
-    val nt_string : char list -> sexpr * char list
-    val nt_line_comment : char list -> string * char list
-    val lParen : char list -> char * char list
-    val rParen : char list -> char * char list
-    val dot : char list -> char * char list
-    val nt_list_pair : char list -> sexpr * char list
-    val nt_dotted_list_pair : char list -> sexpr * char list
-    val nt_make_quote :
-      (char list -> char * char list) ->
-      string -> char list -> sexpr * char list
-    val nt_make_quote2 :
-      (char list -> char list * char list) ->
-      string -> char list -> sexpr * char list
-    val nt_quoted : char list -> sexpr * char list
-    val nt_qquoted : char list -> sexpr * char list
-    val nt_unquoted : char list -> sexpr * char list
-    val nt_unquoted_spliced : char list -> sexpr * char list
-    val nt_sexpr_comment : char list -> string * char list
-    val nt_comment : char list -> string * char list
-    val nt_nil : char list -> sexpr * char list
-    val nt_sexpr : char list -> sexpr * char list
-    val read_sexprs_test : string -> sexpr list
-  end
 # #       val read_and_print : string -> sexpr list = <fun>
 #   ======
 Read input:{1}
@@ -445,7 +389,10 @@ Read input:{  ;
   #;5.2 hello  #;1 ;;;;
    #;aaa bbb"aa"#t  .  64.0 ;ccc
  #;aa ) }
-Exception: PC.X_no_match.
+- : sexpr list =
+[Pair (Pair (Symbol "quote", Pair (Symbol "hello", Nil)),
+  Pair (Symbol "bbb",
+   Pair (String "aa", Pair (Bool true, Number (Float 64.)))))]
 # ======
 Read input:{  ; 
  #;11 (     #;#;#;aa"a"(#t#f"b")    ;gggg

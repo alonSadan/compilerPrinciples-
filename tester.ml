@@ -298,19 +298,23 @@ module Tester = struct
       let nt_number_not_followed_symbol = 
         not_followed_by nt_number_scientific_notation 
                       (disj_list [letter_lowercase;letter_uppercase;punctuation]) in
-        
-        disj_list [
+        let (e1,s) = 
+        (  
+          disj_list [
 
-        nt_number_not_followed_symbol;
-        (* nt_boolean_not_followed_symbol; *)
-        nt_boolean;
-        (* nt_number_scientific_notation; *)
-        nt_symbols;
+          nt_number_not_followed_symbol;
+          (* nt_boolean_not_followed_symbol; *)
+          nt_boolean;
+          (* nt_number_scientific_notation; *)
+          nt_symbols;
+          
+          nt_char;
+          nt_string;nt_list_pair;nt_dotted_list_pair;
+          nt_quoted;nt_qquoted;nt_unquoted;nt_unquoted_spliced;nt_nil] s
+         ) in
+         let (e2, s) = (star nt_comment) s in
+         (e1,s);;
         
-        nt_char;
-        nt_string;nt_list_pair;nt_dotted_list_pair;
-        nt_quoted;nt_qquoted;nt_unquoted;nt_unquoted_spliced;nt_nil] s;; 
-
     let read_sexprs_test string = 
       let nt =  (star nt_sexpr)  in 
         let (e,s) = nt (string_to_list string) in

@@ -1,9 +1,9 @@
-#use "../tester.ml";;
-open Tester;;
+#use "../reader.ml";;
+open Reader;;
 
 let read_and_print s = 
     Printf.printf "======\nRead input:{%s}\n" s;
-    read_sexprs_test s;;
+    read_sexprs s;;
 
 read_and_print "1";;
 read_and_print "  1";;
