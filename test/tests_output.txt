@@ -57,218 +57,397 @@ type sexpr =
   | Pair of sexpr * sexpr
 val sexpr_eq : sexpr -> sexpr -> bool = <fun>
 module Reader : sig val read_sexprs : string -> sexpr list end
-[1mFile "[1m../tester.ml", line 306, characters 49-56[0m[0m:
-[1;31mError[0m: This expression has type char list -> sexpr * char list
-       but an expression was expected of type
-         char list -> sexpr list * char list
-       Type sexpr is not compatible with type sexpr list 
-# [A# open [4mTester[24m;;
-[24m[1;31mError[0m: Unbound module Tester
-#       [A[A[A[A# 
-  let read_and_print s = 
-      Printf.printf "======\nRead input:{%s}\n" s;
-      [4mread_sexprs_test[24m s;;
-[24m[1;31mError[0m: Unbound value read_sexprs_test
-#   [A[A# 
-  [4mread_and_print[24m "1";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "  1";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "  1  ";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "01234";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "001234";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "-12";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "-012";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "+1234";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "+00940";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "1/1";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "2/4";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "-17/6";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "+006/012";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "+1e1";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "1E+1";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "10e-1";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "3.14e+9";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "3.14E-512";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "+0000012.3E0000000000002";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "-5.000000e-2";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "+5.000000e1";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "1.0";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "  1.0  ";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "005.01290";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "501.000000";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "+999.009000";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "-001.000123000";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "#t";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "#f";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "#t#t";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m " #t #t";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "1a^";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m " 1a^   ";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "1a<:";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "AbC";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "a1+3====1.1";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "..";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "..123Ac^";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# ([4mread_and_print[24m "..123Ac^") = (read_and_print "..123ac^");;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "\"\"";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "\"    \"";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "   \"\"    ";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "\"hello . ^ . \"";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "\"hello . ^ [] ; a {} #@\"";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "\"\\r\"";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "\"\\n\"";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "\"\\t\"";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "\"\\f\"";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "\"\\\\\"";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "#\\a";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "   #\\a ";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "#\\A";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# ([4mread_and_print[24m "#\\a") <> (read_and_print "#\\A");;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "#\\nul";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "#\\newline";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "#\\return";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "#\\tab";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "#\\page";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "#\\space";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "'1";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "'3+2";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "'(a 1 . a)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "`1";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "`3+2";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "`(a 1 . a)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m ",1";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m ",3+2";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m ",(a 1 . a)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "`'(1)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "`(1 ,@(+ 1 2))";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "(   1 )";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "(1 2 \"a\")";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "(1aC +2.3e1 \"a\")";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "(1 . 2)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "(#t . #\\A)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "(\"#tab hello\" #t . #\\A)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "(a a a)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "(a a a `(1 . '(#\\tab abC . 3))) (+ 1 2)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "()";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "(    )";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "( ;comment\n ;comment\n)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "( ;comment\n ;comment\n a)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "( ;comment\n ;comment\n #;(+ 1 2) a)";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "    ;commnet\n #;(()) '  ;c\n  #;5.2 hello ";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#   [A[A# 
-  [4mread_and_print[24m "(a);quasiqute next line\n`(a 'hello . ,@(+ 1 2))";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "  ;\n   #;() (   ;commnet\n #;(()) '  ;c\n  #;5.2 hello  #;1 ;;;;\n   #;aaa bbb\"aa\"#t  .  64.0 ;ccc\n #;aa ) ";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "  ; \n #;11 (     #;#;#;aa\"a\"(#t#f\"b\")    ;gggg\n   ;\n #;1 ;\n    ;;;\n ;\n #;#;a 11 )";;
-[24m[1;31mError[0m: Unbound value read_and_print
-#         [A[A[A[A[A# 
-  
-  Printf.printf "\n===========\nThose need to be excptions\n\n";
-  
-  [4mread_and_print[24m ".";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "#ta";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "\"\\\"";;
-[24m[1;31mError[0m: Unbound value read_and_print
-# [A# [4mread_and_print[24m "(1 . 2 . 3)";;
-[24m[1;31mError[0m: Unbound value read_and_print
+module Tester :
+  sig
+    val nt_whitespaces : char list -> char list * char list
+    val nt_character : char list -> char * char list
+    val nt_characters : char list -> char list * char list
+    val make_paired :
+      ('a -> 'b * 'c) -> ('d -> 'e * 'f) -> ('c -> 'g * 'd) -> 'a -> 'g * 'f
+    val make_spaced :
+      (char list -> 'a * char list) -> char list -> 'a * char list
+    val make_left_spaced : (char list -> 'a * 'b) -> char list -> 'a * 'b
+    val make_right_spaced : ('a -> 'b * char list) -> 'a -> 'b * char list
+    val nt_end_of_line : char list -> 'a list * char list
+    val tok_semicolun : char list -> char * char list
+    val nt_boolean : char list -> sexpr * char list
+    val int_of_list : char list -> int
+    val digit : char list -> char * char list
+    val digits : char list -> char list * char list
+    val tok_int : char list -> (char option * char list) * char list
+    val nt_int : char list -> number * char list
+    val gcd1 : int -> int -> int
+    val nt_fraction : char list -> number * char list
+    val float_of_list : char list -> float
+    val nt_float : char list -> number * char list
+    val nt_number : char list -> sexpr * char list
+    val nt_number_scientific_notation : char list -> sexpr * char list
+    val letter_lowercase : char list -> char * char list
+    val letter_uppercase : char list -> char * char list
+    val punctuation : char list -> char * char list
+    val tok_dot : char list -> char * char list
+    val tok_char_not_dot : char list -> char * char list
+    val tok_symbol_char : char list -> char * char list
+    val nt_symbols : char list -> sexpr * char list
+    val nt_char : char list -> sexpr * char list
+    val nt_literal_char : char list -> char * char list
+    val nt_meta_char : char list -> char * char list
+    val nt_string : char list -> sexpr * char list
+    val nt_line_comment : char list -> string * char list
+    val lParen : char list -> char * char list
+    val rParen : char list -> char * char list
+    val dot : char list -> char * char list
+    val nt_list_pair : char list -> sexpr * char list
+    val nt_dotted_list_pair : char list -> sexpr * char list
+    val nt_make_quote :
+      (char list -> char * char list) ->
+      string -> char list -> sexpr * char list
+    val nt_make_quote2 :
+      (char list -> char list * char list) ->
+      string -> char list -> sexpr * char list
+    val nt_quoted : char list -> sexpr * char list
+    val nt_qquoted : char list -> sexpr * char list
+    val nt_unquoted : char list -> sexpr * char list
+    val nt_unquoted_spliced : char list -> sexpr * char list
+    val nt_sexpr_comment : char list -> string * char list
+    val nt_comment : char list -> string * char list
+    val nt_nil : char list -> sexpr * char list
+    val nt_sexpr : char list -> sexpr * char list
+    val read_sexprs_test : string -> sexpr list
+  end
+# #       val read_and_print : string -> sexpr list = <fun>
+#   ======
+Read input:{1}
+- : sexpr list = [Number (Fraction (1, 1))]
+# ======
+Read input:{  1}
+- : sexpr list = [Number (Fraction (1, 1))]
+# ======
+Read input:{  1  }
+- : sexpr list = [Number (Fraction (1, 1))]
+# ======
+Read input:{01234}
+- : sexpr list = [Number (Fraction (1234, 1))]
+# ======
+Read input:{001234}
+- : sexpr list = [Number (Fraction (1234, 1))]
+# ======
+Read input:{-12}
+- : sexpr list = [Number (Fraction (-12, 1))]
+# ======
+Read input:{-012}
+- : sexpr list = [Number (Fraction (-12, 1))]
+# ======
+Read input:{+1234}
+- : sexpr list = [Number (Fraction (1234, 1))]
+# ======
+Read input:{+00940}
+- : sexpr list = [Number (Fraction (940, 1))]
+# ======
+Read input:{1/1}
+- : sexpr list = [Number (Fraction (1, 1))]
+# ======
+Read input:{2/4}
+- : sexpr list = [Number (Fraction (1, 2))]
+# ======
+Read input:{-17/6}
+- : sexpr list = [Number (Fraction (-17, 6))]
+# ======
+Read input:{+006/012}
+- : sexpr list = [Number (Fraction (1, 2))]
+#   ======
+Read input:{+1e1}
+- : sexpr list = [Number (Float 10.)]
+# ======
+Read input:{1E+1}
+- : sexpr list = [Number (Float 10.)]
+# ======
+Read input:{10e-1}
+- : sexpr list = [Number (Float 1.)]
+# ======
+Read input:{3.14e+9}
+- : sexpr list = [Number (Float 3140000000.)]
+# ======
+Read input:{3.14E-512}
+- : sexpr list = [Number (Float 0.)]
+# ======
+Read input:{+0000012.3E0000000000002}
+- : sexpr list = [Number (Float 1230.)]
+# ======
+Read input:{-5.000000e-2}
+- : sexpr list = [Number (Float (-0.05))]
+# ======
+Read input:{+5.000000e1}
+- : sexpr list = [Number (Float 50.)]
+#   ======
+Read input:{1.0}
+- : sexpr list = [Number (Float 1.)]
+# ======
+Read input:{  1.0  }
+- : sexpr list = [Number (Float 1.)]
+# ======
+Read input:{005.01290}
+- : sexpr list = [Number (Float 5.0129)]
+# ======
+Read input:{501.000000}
+- : sexpr list = [Number (Float 501.)]
+# ======
+Read input:{+999.009000}
+- : sexpr list = [Number (Float 999.009)]
+# ======
+Read input:{-001.000123000}
+- : sexpr list = [Number (Float (-1.000123))]
+#   ======
+Read input:{#t}
+- : sexpr list = [Bool true]
+# ======
+Read input:{#f}
+- : sexpr list = [Bool false]
+# ======
+Read input:{#t#t}
+- : sexpr list = [Bool true; Bool true]
+# ======
+Read input:{ #t #t}
+- : sexpr list = [Bool true; Bool true]
+#   ======
+Read input:{1a^}
+- : sexpr list = [Symbol "1a^"]
+# ======
+Read input:{ 1a^   }
+- : sexpr list = [Symbol "1a^"]
+# ======
+Read input:{1a<:}
+- : sexpr list = [Symbol "1a<:"]
+# ======
+Read input:{AbC}
+- : sexpr list = [Symbol "abc"]
+# ======
+Read input:{a1+3====1.1}
+- : sexpr list = [Symbol "a1+3====1.1"]
+# ======
+Read input:{..}
+- : sexpr list = [Symbol ".."]
+# ======
+Read input:{..123Ac^}
+- : sexpr list = [Symbol "..123ac^"]
+# ======
+Read input:{..123ac^}
+======
+Read input:{..123Ac^}
+- : bool = true
+#   ======
+Read input:{""}
+- : sexpr list = [String ""]
+# ======
+Read input:{"    "}
+- : sexpr list = [String "    "]
+# ======
+Read input:{   ""    }
+- : sexpr list = [String ""]
+# ======
+Read input:{"hello . ^ . "}
+- : sexpr list = [String "hello . ^ . "]
+# ======
+Read input:{"hello . ^ [] ; a {} #@"}
+- : sexpr list = [String "hello . ^ [] ; a {} #@"]
+# ======
+Read input:{"\r"}
+- : sexpr list = [String "\r"]
+# ======
+Read input:{"\n"}
+- : sexpr list = [String "\n"]
+# ======
+Read input:{"\t"}
+- : sexpr list = [String "\t"]
+# ======
+Read input:{"\f"}
+- : sexpr list = [String "\012"]
+# ======
+Read input:{"\\"}
+- : sexpr list = [String "\\"]
+#   ======
+Read input:{#\a}
+- : sexpr list = [Char 'a']
+# ======
+Read input:{   #\a }
+- : sexpr list = [Char 'a']
+# ======
+Read input:{#\A}
+- : sexpr list = [Char 'A']
+# ======
+Read input:{#\A}
+======
+Read input:{#\a}
+- : bool = true
+# ======
+Read input:{#\nul}
+- : sexpr list = [Char '\000']
+# ======
+Read input:{#\newline}
+- : sexpr list = [Char '\n']
+# ======
+Read input:{#\return}
+- : sexpr list = [Char '\r']
+# ======
+Read input:{#\tab}
+- : sexpr list = [Char '\t']
+# ======
+Read input:{#\page}
+- : sexpr list = [Char '\012']
+# ======
+Read input:{#\space}
+- : sexpr list = [Char ' ']
+#   ======
+Read input:{'1}
+- : sexpr list =
+[Pair (Symbol "quote", Pair (Number (Fraction (1, 1)), Nil))]
+# ======
+Read input:{'3+2}
+- : sexpr list = [Pair (Symbol "quote", Pair (Symbol "3+2", Nil))]
+# ======
+Read input:{'(a 1 . a)}
+- : sexpr list =
+[Pair (Symbol "quote",
+  Pair (Symbol "a", Pair (Number (Fraction (1, 1)), Symbol "a")))]
+#   ======
+Read input:{`1}
+- : sexpr list =
+[Pair (Symbol "quasiquote", Pair (Number (Fraction (1, 1)), Nil))]
+# ======
+Read input:{`3+2}
+- : sexpr list = [Pair (Symbol "quasiquote", Pair (Symbol "3+2", Nil))]
+# ======
+Read input:{`(a 1 . a)}
+- : sexpr list =
+[Pair (Symbol "quasiquote",
+  Pair (Symbol "a", Pair (Number (Fraction (1, 1)), Symbol "a")))]
+#   ======
+Read input:{,1}
+- : sexpr list =
+[Pair (Symbol "unquote", Pair (Number (Fraction (1, 1)), Nil))]
+# ======
+Read input:{,3+2}
+- : sexpr list = [Pair (Symbol "unquote", Pair (Symbol "3+2", Nil))]
+# ======
+Read input:{,(a 1 . a)}
+- : sexpr list =
+[Pair (Symbol "unquote",
+  Pair (Symbol "a", Pair (Number (Fraction (1, 1)), Symbol "a")))]
+#   ======
+Read input:{`'(1)}
+- : sexpr list =
+[Pair (Symbol "quasiquote",
+  Pair (Symbol "quote", Pair (Number (Fraction (1, 1)), Nil)))]
+# ======
+Read input:{`(1 ,@(+ 1 2))}
+- : sexpr list =
+[Pair (Symbol "quasiquote",
+  Pair (Number (Fraction (1, 1)),
+   Pair
+    (Pair (Symbol "unquote-splicing",
+      Pair (Symbol "+",
+       Pair (Number (Fraction (1, 1)), Pair (Number (Fraction (2, 1)), Nil)))),
+    Nil)))]
+#   ======
+Read input:{(   1 )}
+- : sexpr list = [Pair (Number (Fraction (1, 1)), Nil)]
+# ======
+Read input:{(1 2 "a")}
+- : sexpr list =
+[Pair (Number (Fraction (1, 1)),
+  Pair (Number (Fraction (2, 1)), Pair (String "a", Nil)))]
+# ======
+Read input:{(1aC +2.3e1 "a")}
+- : sexpr list =
+[Pair (Symbol "1ac", Pair (Number (Float 23.), Pair (String "a", Nil)))]
+#   ======
+Read input:{(1 . 2)}
+- : sexpr list = [Pair (Number (Fraction (1, 1)), Number (Fraction (2, 1)))]
+# ======
+Read input:{(#t . #\A)}
+- : sexpr list = [Pair (Bool true, Char 'A')]
+# ======
+Read input:{("#tab hello" #t . #\A)}
+- : sexpr list = [Pair (String "#tab hello", Pair (Bool true, Char 'A'))]
+# ======
+Read input:{(a a a)}
+- : sexpr list =
+[Pair (Symbol "a", Pair (Symbol "a", Pair (Symbol "a", Nil)))]
+#   ======
+Read input:{(a a a `(1 . '(#\tab abC . 3))) (+ 1 2)}
+- : sexpr list =
+[Pair (Symbol "a",
+  Pair (Symbol "a",
+   Pair (Symbol "a",
+    Pair
+     (Pair (Symbol "quasiquote",
+       Pair (Number (Fraction (1, 1)),
+        Pair (Symbol "quote",
+         Pair (Char '\t', Pair (Symbol "abc", Number (Fraction (3, 1))))))),
+     Nil))));
+ Pair (Symbol "+",
+  Pair (Number (Fraction (1, 1)), Pair (Number (Fraction (2, 1)), Nil)))]
+#   ======
+Read input:{()}
+- : sexpr list = [Nil]
+# ======
+Read input:{(    )}
+- : sexpr list = [Nil]
+# ======
+Read input:{( ;comment
+ ;comment
+)}
+- : sexpr list = [Nil]
+# ======
+Read input:{( ;comment
+ ;comment
+ a)}
+Exception: PC.X_no_match.
+# ======
+Read input:{( ;comment
+ ;comment
+ #;(+ 1 2) a)}
+Exception: PC.X_no_match.
+# ======
+Read input:{    ;commnet
+ #;(()) '  ;c
+  #;5.2 hello }
+Exception: PC.X_no_match.
+#   ======
+Read input:{(a);quasiqute next line
+`(a 'hello . ,@(+ 1 2))}
+Exception: PC.X_no_match.
+# ======
+Read input:{  ;
+   #;() (   ;commnet
+ #;(()) '  ;c
+  #;5.2 hello  #;1 ;;;;
+   #;aaa bbb"aa"#t  .  64.0 ;ccc
+ #;aa ) }
+Exception: PC.X_no_match.
+# ======
+Read input:{  ; 
+ #;11 (     #;#;#;aa"a"(#t#f"b")    ;gggg
+   ;
+ #;1 ;
+    ;;;
+ ;
+ #;#;a 11 )}
+Exception: PC.X_no_match.
+#         
+===========
+Those need to be excptions
+
+======
+Read input:{.}
+Exception: PC.X_no_match.
+# ======
+Read input:{#ta}
+- : sexpr list = [Bool true; Symbol "a"]
+# ======
+Read input:{"\"}
+Exception: PC.X_no_match.
+# ======
+Read input:{(1 . 2 . 3)}
+Exception: PC.X_no_match.
 # 

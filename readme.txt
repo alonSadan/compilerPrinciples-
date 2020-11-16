@@ -7,10 +7,12 @@ Question regarding tests:
 
 3)
 
+" '(a 1 . a) "
+by omrihim - Monday, 16 November 2020 11:02:23
+both options are incorrect, this is an improper list, meaning there is no Nil...
+[Pair(Symbol "quote", Pair(Symbol "a",Pair(Number(Fraction(1,1)),Symbol "a")))]
 
-
-
-
+[Pair(Symbol "quote", Pair(Symbol "a",Pair(Number (Fraction(1, 1)), Symbol "a")))] 
 
 
 found in comp's forum,maybe helpful for testing metachars:
