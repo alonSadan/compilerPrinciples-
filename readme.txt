@@ -1,34 +1,10 @@
-Question regarding tests:
-1)
-156c156
-< - : sexpr list = [Symbol "1a^"]
----
-> - : sexpr list = [Number (Fraction (1, 1)); Symbol "a^"]
+itay osovlanski 311129274
+alon sadan 302769344
 
-3)
-
-" '(a 1 . a) "
-by omrihim - Monday, 16 November 2020 11:02:23
-both options are incorrect, this is an improper list, meaning there is no Nil...
-[Pair(Symbol "quote", Pair(Symbol "a",Pair(Number(Fraction(1,1)),Symbol "a")))]
-
-[Pair(Symbol "quote", Pair(Symbol "a",Pair(Number (Fraction(1, 1)), Symbol "a")))] 
-
-
-found in comp's forum,maybe helpful for testing metachars:
-
-   (define meta
-  (letrec ((loop
-            (lambda (s)
-              (cond ((null? s) '())
-                    ((char=? (car s) #\\) `(#\\ #\\ ,@(loop (cdr s))))
-                    ((char=? (car s) #\") `(#\\ #\" ,@(loop (cdr s))))
-                    ((char=? (car s) #\newline) `(#\\ #\n ,@(loop (cdr s))))
-                    ((char=? (car s) #\tab) `(#\\ #\t ,@(loop (cdr s))))
-                    ((char=? (car s) #\newline) `(#\\ #\n ,@(loop (cdr s))))
-                    ((char=? (car s) #\page) `(#\\ #\f ,@(loop (cdr s))))
-                    ((char=? (car s) #\return) `(#\\ #\r ,@(loop (cdr s))))
-                    (else `(,(car s) ,@(loop (cdr s))))))))
-    (lambda (string)
-      (list->string
-       `(#\" ,@(loop (string->list string)) #\")))))
+We assert that the work we submitted is 100% our own. We have not received any
+part from any other student in the class, nor have we give parts of it for use to others.
+Nor have we used code from other sources: Courses taught previously at this university,
+courses taught at other universities, various bits of code found on the Internet, etc.
+We realize that should our code be found to contain code from other sources, that a
+formal case shall be opened against us with va’adat mishma’at, in pursuit of disciplinary
+action.
