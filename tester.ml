@@ -84,7 +84,7 @@ module Tester = struct
     let nt =caten 
               (maybe (disj (make_left_spaced (char '+')) (make_left_spaced (char '-'))))
               digits
-        in make_spaced nt;;
+        in make_left_spaced nt;;
 
   let nt_int = pack tok_int
     (function
@@ -318,8 +318,9 @@ module Tester = struct
     let read_sexprs_test string = 
       let nt =  (star nt_sexpr)  in 
         let (e,s) = nt (string_to_list string) in
-          match e,s with 
-            | e,[] -> e
+        let (_,s2) = nt_whitespaces s in
+          match e,s,s2 with 
+            | e,_,[] -> e
             | _ -> raise X_no_match
   
      (* ToDo: check if Case sensiticty is already implemented*)
