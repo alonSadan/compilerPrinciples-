@@ -74,7 +74,7 @@ let tok_int =
   let nt =caten 
             (maybe (disj (make_left_spaced (char '+')) (make_left_spaced (char '-'))))
             digits
-      in make_spaced nt;;
+      in make_left_spaced nt;;
 
 let nt_int = pack tok_int
   (function
@@ -287,19 +287,18 @@ and nt_dotted_list_pair s=
       
   let read_sexprs string = 
     let nt =  (star nt_sexpr)  in 
-      let (e,s) = nt (string_to_list string) in
-        match e,s with 
-          | e,[] -> e
-          | _ -> raise X_no_match
-
-    (* ToDo: check if Case sensiticty is already implemented*)
+    let (e,s) = nt (string_to_list string) in
+    let (_,s2) = nt_whitespaces s in
+      match e,s,s2 with 
+        | e,_,[] -> e
+        | _ -> raise X_no_match
 
   end;;
 
 open Reader;;
 
 
-(*open Tester;;*)
+
 
 
 
