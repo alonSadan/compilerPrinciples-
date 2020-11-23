@@ -298,9 +298,3 @@ and nt_dotted_list_pair s=
   end;;
 
 open Reader;;
-
-
-(*open Tester;;*)
-
-
-

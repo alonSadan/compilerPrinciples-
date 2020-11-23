@@ -1,5 +1,5 @@
 
-#use "reader.ml";;
+#use "../reader.ml";;
 open Reader;;
 
 let eq sexp_list1 sexp_list2 = 
