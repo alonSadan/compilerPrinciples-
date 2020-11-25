@@ -59,9 +59,65 @@ let reserved_word_list =
 
 (* work on the tag parser starts here *)
 
-let tag_parse_expression sexpr = raise X_not_yet_implemented;;
+let rec chained = function
+    | Pair(Pair(e,es1),es2)  -> [e]@(chained es1)@(chained es2)
+    | Pair(e,es) -> e::(chained es)
+    | Nil -> []
+    | e -> [e];;
 
-let tag_parse_expressions sexpr = raise X_not_yet_implemented;;
+
+let chained_Symbol s=
+  List.map 
+    (function 
+      | Symbol(e) -> e
+      | _ -> raise X_no_match)
+    (chained s);;
+
+
+
+let rec tag_parse = function 
+| Bool(x) -> Const(Sexpr(Bool(x)))
+| Char(x) -> Const(Sexpr(Char(x)))
+| Number(x) -> Const(Sexpr(Number(x))) 
+| String(x) -> Const(Sexpr(String(x)))
+| Pair(Symbol("if"), Pair(test, Pair(dit, Pair(dif, Nil)))) ->
+    If(tag_parse test, tag_parse dit, tag_parse dif)
+| Pair(Symbol("if"), Pair(test, Pair(dit, Nil))) ->
+  If(tag_parse test, tag_parse dit, Const(Void))
+
+| Pair(Symbol("quote"), Pair(x, Nil)) -> Const(Sexpr(x))
+| Pair(Symbol("unquote"), Pair(x, Nil)) -> Const(Sexpr(x))
+| Pair(Symbol("quasiquote"), Pair(x, Nil)) -> Const(Sexpr(x))
+| Pair(Symbol("unquote-splicing"), Pair(x, Nil)) -> Const(Sexpr(x))
+
+| Symbol(x) -> 
+    if List.exists (fun y-> x == y) reserved_word_list then raise X_no_match
+    else Var(x)
+
+(*variadic*)
+(* ToDo: check that string list is actual a set (unique params) *)
+|Pair(Symbol("lambda"), Pair(Pair(args,Pair(Symbol(arg),Symbol(argOptional))),Pair(body,Nil))) ->
+  LambdaOpt((chained_Symbol args)@[arg], argOptional,tag_parse body)
+
+|Pair(Symbol("lambda"), Pair(Symbol (x), body)) -> LambdaOpt([],x,tag_parse body)
+
+|Pair(Symbol("lambda"), Pair(Pair(args,Nil), Pair(body,Nil))) -> 
+  LambdaSimple(chained_Symbol args,tag_parse body)
+
+| _ -> raise X_no_match;;
+
+
+(* | LambdaSimple of string list * expr
+| LambdaOpt of string list * string * expr *)
+
+(* Pair(Symbol "lambda", Pair(Pair(Symbol "a", Pair(Symbol "b", Symbol "c")), Pair(Symbol ""b"", Nil))) *)
+let tag_parse_expression sexpr = 
+   tag_parse sexpr;; 
+  (* raise X_not_yet_implemented;; *)
+
+let tag_parse_expressions sexpr = 
+  List.map tag_parse_expression sexpr;;
+  (* raise X_not_yet_implemented;; *)
 
   
 end;; (* struct Tag_Parser *)
