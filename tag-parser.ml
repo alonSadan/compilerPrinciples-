@@ -59,11 +59,17 @@ let reserved_word_list =
 
 (* work on the tag parser starts here *)
 
+(* let rec flatten_Pairs = function
+  | Pair(Pair(e,es1),es2) -> (flatten_Pairs (Pair(e,es1)))@(flatten_Pairs es2)
+  | Pair(a,b) -> a::(flatten_Pairs b)
+  | s -> [s];; *)
+
+
 let rec chained = function
-    | Pair(Pair(e,es1),es2)  -> [e]@(chained es1)@(chained es2)
-    | Pair(e,es) -> e::(chained es)
-    | Nil -> []
-    | e -> [e];;
+  | Pair(Pair(e,es1),es2)  -> [e]@(chained es1)@(chained es2)
+  | Pair(e,es) -> e::(chained es)
+  | Nil -> []
+  | e -> [e];;
 
 
 let chained_Symbol s=
@@ -74,6 +80,36 @@ let chained_Symbol s=
     (chained s);;
 
 
+let rec improper_list_to_ocaml_list = function
+  | Pair(a,b) -> a::(improper_list_to_ocaml_list b)
+  | s -> [s];;
+
+
+let rec proper_list_to_ocaml_list = function
+  | Pair(a,b) -> a::(proper_list_to_ocaml_list b)
+  | Nil -> []  
+  | _ -> raise X_no_match;;  
+  
+let rec is_proper_lst = function
+  | Pair(a,b) -> is_proper_lst b
+  | Nil -> true
+  | _ -> false;;
+
+let rec is_inproper_lst = function
+  | Pair(a,b) -> is_inproper_lst b
+  | Nil -> false
+  | _ -> true;;
+
+let rec scheme_list_to_ocaml_list scheme_lst=
+  if is_proper_lst scheme_lst then proper_list_to_ocaml_list scheme_lst
+  else  improper_list_to_ocaml_list scheme_lst;;
+
+let improper_arglist_to_lambdaOpt arglist final_body= 
+  let f = (function | Symbol(e) -> e | _ -> raise X_no_match) in
+  let lst = List.map f (improper_list_to_ocaml_list arglist) in
+  let lst_last = List.hd (List.rev lst) in
+  let lst_without_last = List.rev (List.tl (List.rev lst)) in
+    LambdaOpt (lst_without_last, lst_last, final_body);;
 
 let rec tag_parse = function 
 | Bool(x) -> Const(Sexpr(Bool(x)))
@@ -96,21 +132,74 @@ let rec tag_parse = function
 
 (*variadic*)
 (* ToDo: check that string list is actual a set (unique params) *)
-|Pair(Symbol("lambda"), Pair(Pair(args,Pair(Symbol(arg),Symbol(argOptional))),Pair(body,Nil))) ->
-  LambdaOpt((chained_Symbol args)@[arg], argOptional,tag_parse body)
+(* ToDo: check if Pair(body,Nil) is the only case*)
 
-|Pair(Symbol("lambda"), Pair(Symbol (x), body)) -> LambdaOpt([],x,tag_parse body)
+| Pair(Symbol("lambda"), Pair(arglist,Pair(body,Nil))) -> 
+  (match arglist with 
+    | Pair(_,_) ->
+        if is_proper_lst arglist then 
+          LambdaSimple(
+            (List.map (function | Symbol(e) -> e | _ -> raise X_no_match) (proper_list_to_ocaml_list arglist)),
+            (tag_parse body)
+          )
+        else (improper_arglist_to_lambdaOpt arglist (tag_parse body))         
+    | Symbol(s) -> LambdaOpt([],s,(tag_parse body))
+    | _ -> raise X_no_match)
 
-|Pair(Symbol("lambda"), Pair(Pair(args,Nil), Pair(body,Nil))) -> 
-  LambdaSimple(chained_Symbol args,tag_parse body)
+(* Or *)
+|  Pair(Symbol ("or"), args) ->
+    Or(List.map tag_parse (scheme_list_to_ocaml_list args))
+
+
+(* Define *)
+| Pair(Symbol ("define"), Pair(Symbol(x), Pair(value,Nil))) ->
+   Def(Const(Sexpr(Symbol(x))),tag_parse value)
+
+
+(* set! *)
+| Pair(Symbol ("set!"), Pair(Symbol(x), Pair(value,Nil))) ->
+   Def(Const(Sexpr(Symbol(x))),tag_parse value)
+
+(* begin *)
+| Pair(Symbol ("begin"), Nil) ->
+   Const(Void)
+
+| Pair(Symbol ("begin"), Pair(x, Nil)) ->
+  tag_parse x
+
+(* | Pair(a,b) -> if  is_inproper_lst Pair(a,b) then Seq(List.map tag_parse (scheme_list_to_ocaml_list x))
+
+| Pair(Symbol("begin"),sexp) -> Seq[tag_parse sexp)
+
+| is_proper_lst x -> List.map tag_parse (scheme_list_to_ocaml_list x) *)
+
+(* | Pair(Symbol ("begin"),x) -> tag_parse x)
+   
+   (match (tag_parse a),(tag_parse b) with 
+    | expr1,Seq(expr2) -> Seq(expr1::expr2) (*explicit*)
+    | expr1,expr2 -> Seq([expr1]@[expr2])
+    )  *)
+   
+
+(*(print-template '(begin 2 (begin 3 4)))*)
+(* Pair(Symbol "begin", 
+    Pair(Number (Fraction(2, 1)), 
+      Pair(
+        Pair(Symbol "begin", 
+          Pair(Number (Fraction(3, 1)), 
+            Pair(Number (Fraction(4, 1)), Nil))), 
+      Nil)))      *)
+
+(* Aplic *)
+|  Pair(Symbol (x), args) ->
+    Applic(Const(Sexpr(Symbol(x))),List.map tag_parse (scheme_list_to_ocaml_list args))
+
 
 | _ -> raise X_no_match;;
 
 
-(* | LambdaSimple of string list * expr
-| LambdaOpt of string list * string * expr *)
 
-(* Pair(Symbol "lambda", Pair(Pair(Symbol "a", Pair(Symbol "b", Symbol "c")), Pair(Symbol ""b"", Nil))) *)
+
 let tag_parse_expression sexpr = 
    tag_parse sexpr;; 
   (* raise X_not_yet_implemented;; *)
