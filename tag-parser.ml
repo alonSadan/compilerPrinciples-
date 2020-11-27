@@ -95,8 +95,8 @@ let rec is_proper_lst = function
   | Nil -> true
   | _ -> false;;
 
-let rec is_inproper_lst = function
-  | Pair(a,b) -> is_inproper_lst b
+let rec is_improper_lst = function
+  | Pair(a,b) -> is_improper_lst b
   | Nil -> false
   | _ -> true;;
 
@@ -111,6 +111,16 @@ let improper_arglist_to_lambdaOpt arglist final_body=
   let lst_without_last = List.rev (List.tl (List.rev lst)) in
     LambdaOpt (lst_without_last, lst_last, final_body);;
 
+let rec flatten_scheme_expr_list = function
+  | (Seq(e)::es) -> e @ (flatten_scheme_expr_list es) 
+  | (e::es) -> e :: (flatten_scheme_expr_list es) 
+  | [] -> [];; 
+
+let rec body_to_expr body = 
+  if (List.length body) > 1 then Seq(flatten_scheme_expr_list body)
+  else if (List.length body) = 1 then (List.hd body)
+  else raise X_no_match
+  
 let rec tag_parse = function 
 | Bool(x) -> Const(Sexpr(Bool(x)))
 | Char(x) -> Const(Sexpr(Char(x)))
@@ -134,16 +144,18 @@ let rec tag_parse = function
 (* ToDo: check that string list is actual a set (unique params) *)
 (* ToDo: check if Pair(body,Nil) is the only case*)
 
-| Pair(Symbol("lambda"), Pair(arglist,Pair(body,Nil))) -> 
+| Pair(Symbol("lambda"), Pair(arglist,body)) -> 
   (match arglist with 
+    | Nil -> LambdaSimple([],(body_to_expr (List.map tag_parse (scheme_list_to_ocaml_list body))))
     | Pair(_,_) ->
         if is_proper_lst arglist then 
           LambdaSimple(
             (List.map (function | Symbol(e) -> e | _ -> raise X_no_match) (proper_list_to_ocaml_list arglist)),
-            (tag_parse body)
+            (body_to_expr (List.map tag_parse (scheme_list_to_ocaml_list body)))
           )
-        else (improper_arglist_to_lambdaOpt arglist (tag_parse body))         
-    | Symbol(s) -> LambdaOpt([],s,(tag_parse body))
+        else (improper_arglist_to_lambdaOpt arglist 
+              (body_to_expr (List.map tag_parse (scheme_list_to_ocaml_list body))))         
+    | Symbol(s) -> LambdaOpt([],s,(body_to_expr (List.map tag_parse (scheme_list_to_ocaml_list body))))
     | _ -> raise X_no_match)
 
 (* Or *)
@@ -167,38 +179,15 @@ let rec tag_parse = function
 | Pair(Symbol ("begin"), Pair(x, Nil)) ->
   tag_parse x
 
-(* | Pair(a,b) -> if  is_inproper_lst Pair(a,b) then Seq(List.map tag_parse (scheme_list_to_ocaml_list x))
 
-| Pair(Symbol("begin"),sexp) -> Seq[tag_parse sexp)
-
-| is_proper_lst x -> List.map tag_parse (scheme_list_to_ocaml_list x) *)
-
-(* | Pair(Symbol ("begin"),x) -> tag_parse x)
-   
-   (match (tag_parse a),(tag_parse b) with 
-    | expr1,Seq(expr2) -> Seq(expr1::expr2) (*explicit*)
-    | expr1,expr2 -> Seq([expr1]@[expr2])
-    )  *)
-   
-
-(*(print-template '(begin 2 (begin 3 4)))*)
-(* Pair(Symbol "begin", 
-    Pair(Number (Fraction(2, 1)), 
-      Pair(
-        Pair(Symbol "begin", 
-          Pair(Number (Fraction(3, 1)), 
-            Pair(Number (Fraction(4, 1)), Nil))), 
-      Nil)))      *)
+| Pair(Symbol ("begin"),Pair(a,b)) ->
+   Seq(flatten_scheme_expr_list (List.map tag_parse (scheme_list_to_ocaml_list (Pair(a,b)))))
 
 (* Aplic *)
-|  Pair(Symbol (x), args) ->
+| Pair(Symbol (x), args) ->
     Applic(Const(Sexpr(Symbol(x))),List.map tag_parse (scheme_list_to_ocaml_list args))
 
-
 | _ -> raise X_no_match;;
-
-
-
 
 let tag_parse_expression sexpr = 
    tag_parse sexpr;; 
