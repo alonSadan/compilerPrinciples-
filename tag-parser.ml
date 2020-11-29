@@ -183,7 +183,7 @@ let macro_pset sexpr tp =
   let vars_scheme_list = lst_without_last (make_vars_scheme_list sexpr) in
   let sexprs_scheme_list = lst_without_last (make_sexprs_scheme_list sexpr) in
 
-  let lambda_arglist = sexprs_scheme_list in 
+  let lambda_arglist = List.map (function | Var(x) -> Var(x ^ String.make 1 '_') | _ -> raise X_syntax_error) vars_scheme_list  in 
   let lambda_inner_body = 
     List.map (function (a,b) -> Set(a,b)) (zip vars_scheme_list lambda_arglist) in
 
