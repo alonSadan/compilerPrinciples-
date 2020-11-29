@@ -60,7 +60,7 @@ test_string_to_exprs "(lambda (a b c . d) \"b\")" ([LambdaOpt(["a";"b";"c"] ,"d"
 test_string_to_exprs "(lambda s 1)" ([LambdaOpt([],"s",Const(Sexpr(Number(Fraction(1,1)))))]) "test 12 failed lambdaOpt variadic -> expected value: LambdaOpt([],\"s\",Const(Sexpr(Number(Fraction(1,1)))))";;
 
 
-test_string_to_exprs "(+ 1 2)" ([Applic(Const(Sexpr(Symbol("+"))),
+test_string_to_exprs "(+ 1 2)" ([Applic(Var "+",
                                         [Const(Sexpr(Number(Fraction(1,1))));Const(Sexpr(Number(Fraction(2,1))))])]) "test 13 failed applic -> expected value: 
                                         Applic(Const(Sexpr(Symbol(\"+\"))),[Const(Sexpr(Number(Fraction(1,1))));Const(Sexpr(Number(Fraction(2,1))))";;
 

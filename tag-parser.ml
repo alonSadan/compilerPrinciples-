@@ -59,27 +59,6 @@ let reserved_word_list =
 
 (* work on the tag parser starts here *)
 
-(* let rec flatten_Pairs = function
-  | Pair(Pair(e,es1),es2) -> (flatten_Pairs (Pair(e,es1)))@(flatten_Pairs es2)
-  | Pair(a,b) -> a::(flatten_Pairs b)
-  | s -> [s];; *)
-
-
-let rec chained = function
-  | Pair(Pair(e,es1),es2)  -> [e]@(chained es1)@(chained es2)
-  | Pair(e,es) -> e::(chained es)
-  | Nil -> []
-  | e -> [e];;
-
-
-let chained_Symbol s=
-  List.map 
-    (function 
-      | Symbol(e) -> e
-      | _ -> raise X_no_match)
-    (chained s);;
-
-
 let rec improper_list_to_ocaml_list = function
   | Pair(a,b) -> a::(improper_list_to_ocaml_list b)
   | s -> [s];;
@@ -119,8 +98,110 @@ let rec flatten_scheme_expr_list = function
 let rec body_to_expr body = 
   if (List.length body) > 1 then Seq(flatten_scheme_expr_list body)
   else if (List.length body) = 1 then (List.hd body)
-  else raise X_no_match
+  else raise X_syntax_error;;
+
+let wrap_with_quote sexpr = Pair(Symbol "quote",Pair(sexpr,Nil))
+let wrap_with_qq sexpr = Pair(Symbol "quasiquote",Pair(sexpr,Nil))
+
+
+let macro_QQ sexpr tp =
+  (*call when in proper list*)
+  let f = function
+    | Pair(Symbol ("unquote"),Pair(a,_)) -> [tp a]
+    | Pair(Symbol ("unquote-splicing"),Pair(a,b)) ->
+       (match b with 
+         | Pair (Symbol "unquote", Pair (b,_)) -> (tp a)::[tp b]
+         | Pair (Symbol "unquote-splicing", Pair (b,c)) -> (tp a)::(tp b) :: [(tp (wrap_with_quote Nil))]
+         | _ -> (tp a)::[(tp (wrap_with_quote b))])
+    | s -> [tp (wrap_with_quote s)] in 
   
+  let res = match sexpr with
+    | Pair(Symbol ("unquote"),Pair(a,Nil)) -> [(tp a)]
+    | Pair(Symbol ("unquote-splicing"), Pair(a,Nil)) -> raise X_syntax_error 
+    | Pair(a,Nil) -> (f a)
+    (* `() *)
+    | Pair(Pair (Symbol ("unquote-splicing"),Pair(a,Nil)),Pair(b,Nil)) ->
+        (f (Pair(Symbol ("unquote-splicing"),Pair(a,b))))
+    | Pair(Pair (Symbol ("unquote-splicing"),Pair(a,Nil)),Pair(b,Pair(c,Nil))) ->
+        (f (Pair(Symbol ("unquote-splicing"),Pair(a,b)))) @ [(tp (wrap_with_qq c))]
+    | Pair(a,b) -> (f a) @ [(tp (wrap_with_qq b))]
+    | s -> f s in
+  
+  (body_to_expr res);;
+
+let rec macro_and sexpr tp = 
+  match sexpr with 
+    | Nil -> tp (Bool true)
+    | Pair(a,Nil) -> tp a
+    | Pair(a,b) -> If(tp a,(macro_and b tp),tp (Bool false))
+    | _ -> raise X_syntax_error;;
+
+
+
+    (* (define expr1 0)
+    (define expr2 1)
+    (define v1 expr1)
+    (define v2 expr2)
+    
+    (define helper2
+      (lambda ()
+        ((lambda (e1' e2')
+            (set! v1 e1')
+            (set! v2 e2')
+            #f)
+          expr2 expr1)))
+        
+        
+    <if-then> form returns void when test is false (helper2 always returns false) 	  
+    (if (helper2) '())  *)
+
+(* should return:     *)
+(* If(test,Nil) s.t test = Applic (LambdaSimple([] (LambdaSimple([expr1,expr2],seq[set!,set!,...,bool false]))) *)
+(* the inner lambda is equal to let  (there is not let expr) *)
+
+let rec zip lst1 lst2 =
+  match lst1,lst2 with
+  | [], [] -> []
+  | h1::t1, h2::t2 -> (h1, h2)::(zip t1 t2)
+  | _, _ -> raise X_syntax_error
+;;
+
+let lst_last lst = List.hd (List.rev lst) ;;
+let lst_without_last lst= List.rev (List.tl (List.rev lst));;
+
+
+let macro_pset sexpr tp = 
+  let rec make_vars_scheme_list = function
+    | Pair(Pair(Symbol(v),_),rest) ->  (tp (Symbol(v))) :: (make_vars_scheme_list rest)
+    | Nil -> [Const(Void)] 
+    | _ -> raise X_syntax_error in
+  let rec make_sexprs_scheme_list = function
+    | Pair(Pair(Symbol(v),Pair(sexpr,Nil)),rest) ->  (tp sexpr) :: (make_sexprs_scheme_list rest)
+    | Nil -> [Const(Void)] 
+    | _ -> raise X_syntax_error in
+  (* ToDo: check if need to remove last item  *)
+  let vars_scheme_list = lst_without_last (make_vars_scheme_list sexpr) in
+  let sexprs_scheme_list = lst_without_last (make_sexprs_scheme_list sexpr) in
+
+  let lambda_arglist = sexprs_scheme_list in 
+  let lambda_inner_body = 
+    List.map (function (a,b) -> Set(a,b)) (zip vars_scheme_list lambda_arglist) in
+
+  (* this for ensure that <if-test always returns false   *)
+  let lambda_inner_body = lambda_inner_body @ [(Const(Sexpr(Bool false)))] in
+  
+  (* create the expr: (not send it to tag_parse recursively)*)
+  (*reanme expr_i to expr_i_i *)
+  let lambda_arglist_str = List.map (function | Var(x) -> (x ^ String.make 1 '_') | _ -> raise X_syntax_error) vars_scheme_list in
+  let l2 = LambdaSimple(lambda_arglist_str,(body_to_expr lambda_inner_body)) in
+  let l1 = LambdaSimple([],Applic(l2,sexprs_scheme_list)) in
+  let app_pset = Applic(l1,[]) in
+  let if_expr = If(app_pset,Const(Sexpr(Bool false)),Const(Void)) in
+  if_expr
+  
+  (* Pair(Symbol "pset!", Pair(Pair(Symbol "v1", Pair(Symbol "e1", Nil)), Nil)) *)
+
+
 let rec tag_parse = function 
 | Bool(x) -> Const(Sexpr(Bool(x)))
 | Char(x) -> Const(Sexpr(Char(x)))
@@ -132,10 +213,6 @@ let rec tag_parse = function
   If(tag_parse test, tag_parse dit, Const(Void))
 
 | Pair(Symbol("quote"), Pair(x, Nil)) -> Const(Sexpr(x))
-| Pair(Symbol("unquote"), Pair(x, Nil)) -> Const(Sexpr(x))
-| Pair(Symbol("quasiquote"), Pair(x, Nil)) -> Const(Sexpr(x))
-| Pair(Symbol("unquote-splicing"), Pair(x, Nil)) -> Const(Sexpr(x))
-
 | Symbol(x) -> 
     if List.exists (fun y-> x == y) reserved_word_list then raise X_no_match
     else Var(x)
@@ -170,7 +247,7 @@ let rec tag_parse = function
 
 (* set! *)
 | Pair(Symbol ("set!"), Pair(Symbol(x), Pair(value,Nil))) ->
-   Def(Const(Sexpr(Symbol(x))),tag_parse value)
+   Set(Const(Sexpr(Symbol(x))),tag_parse value)
 
 (* begin *)
 | Pair(Symbol ("begin"), Nil) ->
@@ -183,11 +260,32 @@ let rec tag_parse = function
 | Pair(Symbol ("begin"),Pair(a,b)) ->
    Seq(flatten_scheme_expr_list (List.map tag_parse (scheme_list_to_ocaml_list (Pair(a,b)))))
 
-(* Aplic *)
-| Pair(Symbol (x), args) ->
-    Applic(Const(Sexpr(Symbol(x))),List.map tag_parse (scheme_list_to_ocaml_list args))
+(*QQ*)
+| Pair(Symbol ("quasiquote"), Pair(sexpr,Nil)) -> (macro_QQ sexpr tag_parse)   
+  
+(* and *)
+| Pair(Symbol ("and"), sexpr) -> (macro_and sexpr tag_parse)
 
-| _ -> raise X_no_match;;
+(* define mit *)
+(* Pair(Symbol ("define"), Pair(Symbol(x), Pair(value,Nil))) *)
+(* Pair(Symbol("lambda"), Pair(arglist,body)) *)
+
+| Pair(Symbol "define",Pair(var_and_arglist,Pair(sexprs,Nil))) ->
+    (match var_and_arglist with 
+      | Pair(var, arglist) -> tag_parse (Pair(Symbol "define",Pair(var,Pair(Pair(Symbol("lambda"), Pair(arglist,Pair(sexprs,Nil))),Nil))))
+      | _ -> raise X_syntax_error)
+
+
+| Pair(Symbol "pset!", sexpr) -> macro_pset sexpr tag_parse
+
+(* Aplic *)
+(* ToDo: check input ((((x)))) *)
+| Pair(proc, args) ->
+    Applic((tag_parse proc),List.map tag_parse (scheme_list_to_ocaml_list args))
+
+
+    
+| _ -> raise X_syntax_error;;
 
 let tag_parse_expression sexpr = 
    tag_parse sexpr;; 
