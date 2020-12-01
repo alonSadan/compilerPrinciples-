@@ -66,7 +66,7 @@ test_string_to_exprs "(+ 1 2)" ([Applic(Var "+",
 
 test_string_to_exprs "(or #t #f)" ([Or([Const(Sexpr(Bool(true) ));Const(Sexpr(Bool(false)))])]) "test 14 failed or -> expected value: Or([Const(Sexpr(Bool(true) ));Const(Sexpr(Bool(false)))])";; 
 
-test_string_to_exprs "(define x #f)" ([Def(Const(Sexpr(Symbol("x"))),Const(Sexpr(Bool false)))]) "test 15 failed define -> expected value: Def(Const(Sexpr(Symbol(\"x\"))),Const(Sexpr(Bool false)))";;                                      
+test_string_to_exprs "(define x #f)" ([Def (Var "x", Const (Sexpr (Bool false)))]) "test 15 failed define -> expected value: [Def (Var \"x\", Const (Sexpr (Bool false)))]";;                                      
 test_string_to_exprs "(begin)" ([Const(Void)]) "test 16 failed empty seq -> expected value: Const(Void)";;                                      
 test_string_to_exprs "(begin x)" ([Var("x")]) "test 17 failed single exp seq -> expected value: Var(\"x\")";;
 test_string_to_exprs "(begin #t #f)"  ([Seq [Const (Sexpr (Bool true)); Const (Sexpr (Bool false))]]) "test 18 failed basic begin failed -> expected value: Seq [Const (Sexpr (Bool true)); Const (Sexpr (Bool false))";;

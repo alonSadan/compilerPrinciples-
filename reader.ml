@@ -148,7 +148,7 @@ let nt_number_scientific_notation =
                                       
   let nt_named_chars = pack (make_spaced nt_named_chars) list_to_string in 
   let nt_named_chars = pack nt_named_chars
-                (function 
+                (function (res) -> match (String.lowercase_ascii res) with
                   | "#\\nul" -> char_of_int 0
                   | "#\\newline" -> char_of_int 10
                   | "#\\return" -> char_of_int 13                
