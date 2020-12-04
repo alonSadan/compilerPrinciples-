@@ -43,6 +43,13 @@ let rec expr_eq e1 e2 =
 
 
 exception X_syntax_error;;
+exception Alon_err_1;;
+exception Alon_err_2;;
+exception Alon_err_3;;
+exception Alon_err_4;;
+exception Alon_err_5;;
+
+
 
 module type TAG_PARSER = sig
   val tag_parse_expression : sexpr -> expr
@@ -87,6 +94,13 @@ module Tag_Parser : TAG_PARSER = struct
     | Pair(a,b) -> is_improper_lst b
     | Nil -> false
     | _ -> true;;
+
+  let is_nil  = function
+    | Nil -> true
+    | _ -> false
+  let is_let_exp = function
+    | Pair(Symbol("let"), args_and_vals) -> true
+    | _-> false ;;
 
   let rec scheme_list_to_ocaml_list scheme_lst=
     if is_proper_lst scheme_lst then proper_list_to_ocaml_list scheme_lst
@@ -194,6 +208,13 @@ module Tag_Parser : TAG_PARSER = struct
        | Pair(var, arglist) -> tag_parse (Pair(Symbol "define",Pair(var,Pair(Pair(Symbol("lambda"), Pair(arglist,Pair(sexprs,Nil))),Nil))))
        | _ -> raise X_syntax_error)
 
+    | Pair(Symbol "let", Pair(args, body))-> macro_let args body
+
+    | Pair (Symbol("let*"), Pair(args, body)) -> macro_let_star args body
+
+    | Pair (Symbol("letrec"), Pair(args, body)) -> macro_letrec args body
+
+    | Pair (Symbol("cond"),ribs) -> macro_cond ribs
 
     | Pair(Symbol "pset!", sexpr) -> macro_pset sexpr
 
@@ -201,11 +222,131 @@ module Tag_Parser : TAG_PARSER = struct
     (* ToDo: check input ((((x)))) *)
     | Pair(proc, args) ->
       Applic((match (tag_parse proc) with
-          | Const(_) ->  raise X_syntax_error
+          | Const(_) ->  raise Alon_err_5
           | e -> e
         ),List.map tag_parse (scheme_list_to_ocaml_list args))
 
-    | _ -> raise X_syntax_error
+    | _ -> raise Alon_err_2
+
+  and macro_cond ribs =
+
+
+    let rec parse_cond ribs_2 =
+      match ribs with
+      | Nil -> Const(Void)
+
+
+      | Pair(Pair(a_sexp,Pair(Symbol("=>"),Pair(b_sexp,Nil))),Nil) ->
+        let lambdaSimple_if = LambdaSimple (["value"; "f"],If (Var "value", Applic (Applic (Var "f", []), [Var "value"]),Const Void)) in
+        Applic(lambdaSimple_if,[tag_parse a_sexp]@ [LambdaSimple([],tag_parse b_sexp)]  @[])
+
+      | Pair(Pair(a_sexp,Pair(Symbol("=>"),Pair(b_sexp,Nil))), rest_ribs) ->
+        let lambdaSimple_if = LambdaSimple (["value"; "f"; "rest"],If (Var "value", Applic (Applic (Var "f", []), [Var "value"]),Applic (Var "rest", []))) in
+        Applic(lambdaSimple_if,[tag_parse a_sexp]@ [LambdaSimple([],tag_parse b_sexp)]  @[LambdaSimple([],macro_cond rest_ribs)])
+
+      (* let test52 = test_exp (tag_parse_expressions([Pair (Symbol "cond",Pair(Pair (Number (Fraction(1,1)), Pair (Number (Fraction(2,2)), Pair (Number (Fraction(3,3)), Nil))),Pair(Pair (Symbol "else",Pair (Number (Fraction(4,4)), Pair (Number (Fraction(5,5)), Pair (Number (Fraction(6,6)), Nil)))),Pair(Pair (Number (Fraction(7,7)), Pair (Number (Fraction(8,8)), Pair (Number (Fraction(9,9)), Nil))),Nil))))])) ([If (Const (Sexpr (Number (Fraction(1,1)))),Seq [Const (Sexpr (Number (Fraction(2,2)))); Const (Sexpr (Number (Fraction(3,3))))],Seq[Const (Sexpr (Number (Fraction(4,4)))); Const (Sexpr (Number (Fraction(5,5))));Const (Sexpr (Number (Fraction(6,6))))])]);; *)
+
+      | Pair(Pair(Symbol("else"),rib),_) -> body_to_expr( List.map tag_parse (scheme_list_to_ocaml_list rib))
+      | Pair(Pair(test,dit),dif) -> If(tag_parse test ,body_to_expr( List.map tag_parse (scheme_list_to_ocaml_list dit)), macro_cond dif)
+      | _-> raise Alon_err_5 in
+
+    parse_cond ribs
+
+
+
+  (* type expr =
+        | Const of constant
+        | Var of string
+        | If of expr * expr * expr
+        | Seq of expr list
+        | Set of expr * expr
+        | Def of expr * expr
+        | Or of expr list
+        | LambdaSimple of string list * expr
+        | LambdaOpt of string list * string * expr
+        | Applic of expr * (expr list);; *)
+
+
+
+  and macro_let args body =
+
+    let rec make_lambda_vars args_2 =
+      match args_2 with
+      | Nil -> Nil
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), Nil) -> Pair(Symbol(first_var), Nil)
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), rest) -> Pair(Symbol(first_var),make_lambda_vars rest)
+      | _-> raise Alon_err_3 in
+
+    let rec make_lambda_vals args_3 =
+      match args_3 with
+      | Nil -> Nil
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), Nil) -> Pair(first_val, Nil)
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), rest) -> Pair(first_val,make_lambda_vals rest)
+      | _-> raise Alon_err_4 in
+
+    let lambda_vars = make_lambda_vars args in
+    let lambda_vals = make_lambda_vals args in                      (*List.map tag_parse (scheme_list_to_ocaml_list args)*)
+    let applic_vals = List.map tag_parse (scheme_list_to_ocaml_list lambda_vals) in
+
+    let lambda = tag_parse (Pair(Symbol("lambda"),Pair(lambda_vars, body))) in
+    Applic(lambda, applic_vals)
+
+
+
+  and macro_let_star args body =
+
+    let rec let_star_tag_parse =
+      match args with
+      | Nil -> macro_let args body
+      | Pair(Pair(Symbol(fisrt_var), Pair(sexp,Nil)), Nil)->  macro_let args body
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), rest) ->
+        Applic(LambdaSimple([first_var],(tag_parse(Pair(Symbol("let*"),Pair(rest, body))))), [tag_parse first_val])
+      | _-> raise Alon_err_3 in
+    let_star_tag_parse
+
+
+
+
+  and macro_letrec args body =
+
+    let rec make_lambda_vars args_1 =
+      match args_1 with
+      | Nil -> Nil
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), Nil) -> Pair(Symbol(first_var), Nil)
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), rest) -> Pair(Symbol(first_var),make_lambda_vars rest)
+      | _-> raise Alon_err_3 in
+
+    let rec make_lambda_vals args_3 =
+      match args_3 with
+      | Nil -> Nil
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), Nil) -> Pair(first_val, Nil)
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), rest) -> Pair(first_val,make_lambda_vals rest)
+      | _-> raise Alon_err_4 in
+
+    let rec make_sets_as_exp_list args_4 =
+      match args_4 with
+      | Nil-> []
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), Nil)-> [Set(Var(first_var),tag_parse first_val)]
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), rest) -> [Set(Var(first_var),tag_parse first_val)]@(make_sets_as_exp_list rest)
+      | _ -> raise Alon_err_1 in
+
+    let rec make_whatever args_4 =
+      match args_4 with
+      | Nil-> Nil
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), Nil) -> Pair(Pair(Symbol(first_var), Pair(Symbol("whatever"),Nil)), Nil)
+      | Pair(Pair(Symbol(first_var), Pair(first_val,Nil)), rest) ->Pair(Pair(Symbol(first_var), Pair(Symbol("whatever"),Nil)),make_whatever rest)
+      | _ -> raise Alon_err_3 in
+
+    let letrec_vars = make_lambda_vars args in
+    let letrec_vars_as_exp_list  = List.map (function | Symbol(x) -> x | _-> raise Alon_err_1) (scheme_list_to_ocaml_list letrec_vars) in
+    (*let letrec_vals = make_lambda_vals args in*)
+    let whatever_list =scheme_list_to_ocaml_list( make_lambda_vals(make_whatever args)) in
+    let whatever_list_as_exp = List.map (function | Symbol(x) -> Const (Sexpr (Symbol x)) | _-> raise Alon_err_1) whatever_list in
+    let applic_no_vars_body_ = (body_to_expr (List.map tag_parse (scheme_list_to_ocaml_list body))) in
+    let applic_no_vars = Applic(LambdaSimple([], applic_no_vars_body_),[]) in
+    let sets_list = make_sets_as_exp_list args in
+    Applic(LambdaSimple(letrec_vars_as_exp_list, (body_to_expr(sets_list @ [applic_no_vars]))),whatever_list_as_exp)
+
 
   and macro_QQ = function
     | Pair(Symbol "unquote",Pair(a,Nil)) -> (tag_parse a)
@@ -251,6 +392,8 @@ module Tag_Parser : TAG_PARSER = struct
     let l1 = LambdaSimple([],Applic(l2,sexprs_scheme_list)) in
     let app_pset = Applic(l1,[]) in
     app_pset;;
+
+
   (* let if_expr = If(app_pset,Const(Sexpr(Bool false)),Const(Void)) in *)
   (* if_expr *)
 
