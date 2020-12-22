@@ -11,7 +11,7 @@ module type CODE_GEN = sig
        * the offset from the base const_table address in bytes; and
        * a string containing the byte representation (or a sequence of nasm macros)
          of the constant value
-     For example: [(Sexpr(Nil), (1, "SOB_NIL"))]
+     For example: [(Sexpr(Nil), (1, "T_NIL"))]
    *)
   val make_consts_tbl : expr' list -> (constant * (int * string)) list
 
@@ -23,8 +23,10 @@ module type CODE_GEN = sig
    *)  
   val make_fvars_tbl : expr' list -> (string * int) list
 
-  (* This signature represents the idea of outputing assembly code as a string
-     for a single AST', given the full constants and fvars tables. 
+  (* If you change the types of the constants and fvars tables, you will have to update
+     this signature to match: The first argument is the constants table type, the second 
+     argument is the fvars table type, and the third is an expr' that has been annotated 
+     by the semantic analyser.
    *)
   val generate : (constant * (int * string)) list -> (string * int) list -> expr' -> string
 end;;

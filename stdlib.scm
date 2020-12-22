@@ -2,16 +2,24 @@
   (let ((null? null?)
 	(car car) (cdr cdr)
 	(cons cons) (apply apply))
-    (letrec ((map-loop (lambda (f l . ls)
-		     (if (null? l)
-			 '() ; simplifying assumption: if l is empty, then ls is also empty
-			 (if (null? ls)
-			     (cons (f (car l)) (map-loop f (cdr l)))
-			     (cons (apply f (car l) (map-loop car ls))
-				   (apply map f (cdr l) (map-loop cdr ls))))))))
-      map-loop)))
+  (letrec ((map-many
+	    (lambda (f lists)
+	      (if (null? (car lists))
+		  '()
+		  (cons
+		   (apply f (map-one car lists))
+		   (map-list f (map-one cdr lists))))))
+	   (map-one
+	    (lambda (f s)
+	      (if (null? s)
+		  '()
+		  (cons (f (car s))
+			(map-one f (cdr s)))))))
+    (lambda (f . args)
+      (map-many f args)))))
 
-(define fold-left
+
+(define fold-left 
   #;(Add your implementation here
      Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
      This is on purpose, so you don't compile the library without completing this implementation by mistake.))
@@ -31,11 +39,12 @@
 	(fold-right fold-right)
 	(cons cons))
     (lambda args
-      (fold-right (lambda (e a)
-		    (if (null? a)
-			e
-			(fold-right cons a e)))
-		  '() args))))
+      (fold-right
+       (lambda (e a)
+	 (if (null? a)
+	     e
+	     (fold-right cons a e)))
+       '() args))))
 
 (define list (lambda x x))
 
@@ -43,17 +52,12 @@
   (let ((null? null?)
 	(pair? pair?)
 	(cdr cdr))
-    (letrec ((list?-loop (lambda (x)
-			   (or (null? x)
-			       (and (pair? x)
-				    (list? (cdr x)))))))
+    (letrec ((list?-loop
+	      (lambda (x)
+		(or (null? x)
+		    (and (pair? x)
+			 (list? (cdr x)))))))
       list?-loop)))
-
-(define length
-  (let ((fold-left fold-left)
-	(+ +))
-    (lambda (l)
-      (fold-left (lambda (acc e) (+ acc 1)) 0 l))))
 
 (define make-string
   (let ((null? null?) (car car)
@@ -66,102 +70,120 @@
 (define not
   (lambda (x) (if x #f #t)))
 
-(define number?
-  (let ((float? float?)
-	(integer? integer?))
-    (lambda (x)
-      (or (float? x) (integer? x)))))
-
-(define +
-  (let ((fold-left fold-left)
-	(+ +))
-    (lambda x (fold-left + 0 x))))
-
-(define *
-  (let ((fold-left fold-left)
-	(* *))
-    (lambda x (fold-left * 1 x))))
+(let ((flonum? flonum?) (rational? rational?)
+      (exact->inexact exact->inexact)
+      (fold-left fold-left) (map map)
+      (_+ +) (_* *) (_/ /) (_= =) (_< <)
+      (car car) (cdr cdr) (null? null?))
+  (let ((^numeric-op-dispatcher
+	 (lambda (op)
+	   (lambda (x y)
+	     (cond
+	      ((and (flonum? x) (rational? y)) (op x (exact->inexact y)))
+	      ((and (rational? x) (flonum? y)) (op (exact->inexact x) y))
+	      (else (op x y)))))))
+    (let ((normalize
+	   (lambda (x)
+	     (if (flonum? x)
+		 x
+		 (let ((n (gcd (numerator x) (denominator x))))
+		   (_/ (_/ (numerator x) n) (_/ (denominator x) n)))))))
+      (set! + (lambda x (normalize (fold-left (^numeric-op-dispatcher _+) 0 x))))
+      (set! * (lambda x (normalize (fold-left (^numeric-op-dispatcher _*) 1 x))))
+      (set! / (let ((/ (^numeric-op-dispatcher _/)))
+		(lambda (x . y)
+		  (if (null? y)
+		      (/ 1 x)
+		      (normalize (fold-left / x y)))))))
+    (let ((^comparator
+	  (lambda (op)
+	    (lambda (x . ys)
+	      (fold-left (lambda (a b) (and a b)) #t
+			 (map (lambda (y) (op x y)) ys))))))
+      (set! = (^comparator (^numeric-op-dispatcher _=)))
+      (set! < (^comparator (^numeric-op-dispatcher _<))))))
 
 (define -
   (let ((apply apply)
-	(- -) (+ +)
+	(+ +)
 	(null? null?))
     (lambda (x . y)
       (if (null? y)
-	  (- 0 x)
-	  (- x (apply + y))))))
-
-(define /
-  (let ((apply apply)
-	(/ /) (* *)
-	(null? null?))
-    (lambda (x . y)
-      (if (null? y)
-	  (/ 1 x)
-	  (/ x (apply * y))))))
-
-(define =
-  (let ((= =) (null? null?)
-	(car car) (cdr cdr)
-	(apply apply))
-    (letrec ((=-loop (lambda (x . y)
-		       (if (null? y)
-			   #t ; simplifying assumption: x is a number
-			   (and (= x (car y)) (apply =-loop x (cdr y)))))))
-      =-loop)))
-
-(define <
-  (let ((null? null?) (< <)
-	(car car) (cdr cdr))
-    (letrec ((<-loop (lambda (element lst)
-		     (if (null? lst) 
-			 #t 
-			 (and (< element (car lst))
-			     (<-loop (car lst) (cdr lst)))))))
-      (lambda (x . y)
-	(<-loop x y)))))
+	  (+ 0 (* -1 x))
+	  (+ x (* -1 (apply + y)))))))
 
 (define >
-  (let ((null? null?) (< <) (= =)
-	(not not) (car car) (cdr cdr))
-    (letrec ((>-loop (lambda (element lst)
-		     (if (null? lst) 
-			 #t
-			 (and (not (or
-				    (< element (car lst))
-				    (= element (car lst))))
-			      (>-loop (car lst) (cdr lst)))))))
-      (lambda (x . y)
-	(>-loop x y)))))
+  (let ((null? null?) (not not)
+	(< <) (= =) (fold-left fold-left))
+    (lambda (x . ys)
+      (fold-left (lambda (a y)
+		   (and a (not (or (< x y) (= x y)))))
+		 #t ys))))
+
+(define gcd
+  (let ((gcd gcd) (null? null?)
+	(car car) (cdr cdr))
+    (letrec ((gcd-loop
+	      (lambda (x ys)
+		(if (null? ys)
+		    x
+		    (gcd-loop (gcd x (car ys)) (cdr ys))))))
+      (lambda x
+	(if (null? x)
+	    0
+	    (gcd-loop (car x) (cdr x)))))))
 
 (define zero? 
   (let ((= =))
     (lambda (x) (= x 0))))
 
+(define integer?
+  (let ((rational? rational?)
+	(= =)
+	(denominator denominator))
+    (lambda (x)
+      (and (rational? x) (= (denominator x) 1)))))
+
+(define number?
+  (let ((flonum? flonum?)
+	(rational? rational?))
+    (lambda (x)
+      (or (flonum? x) (rational? x)))))
+
+(define length
+  (let ((fold-left fold-left)
+	(+ +))
+    (lambda (l)
+      (fold-left (lambda (acc e) (+ acc 1)) 0 l))))
+
 (define string->list
   (let ((string-ref string-ref)
 	(string-length string-length)
-	(< <) (- -))
+	(< <) (- -) (cons cons))
     (lambda (s)
-      (letrec ((s->l-loop (lambda (n a)
-			    (if (< n 0)
-				a
-				(s->l-loop (- n 1) (cons (string-ref s n) a))))))
+      (letrec
+	  ((s->l-loop
+	    (lambda (n a)
+	      (if (< n 0)
+		  a
+		  (s->l-loop (- n 1) (cons (string-ref s n) a))))))
 	(s->l-loop (- (string-length s) 1) '())))))
 
 (define equal?
   (let ((= =) (string->list string->list)
-	(integer? integer?) (float? float?)
+	(rational? rational?) (flonum? flonum?)
 	(pair? pair?) (char? char?)
 	(string? string?) (eq? eq?)
 	(car car) (cdr cdr)
 	(char->integer char->integer))
-    (letrec ((equal?-loop (lambda (x y)
-			    (or 
-			     (and (integer? x) (integer? y) (= x y))
-			     (and (float? x) (float? y) (= x y))
-			     (and (pair? x) (pair? y) (equal?-loop (car x) (car y)) (equal?-loop (cdr x) (cdr y)))
-			     (and (char? x) (char? y) (= (char->integer x) (char->integer y)))
-			     (and (string? x) (string? y) (equal?-loop (string->list x) (string->list y)))
-			     (eq? x y)))))
+    (letrec ((equal?-loop
+	      (lambda (x y)
+		(cond
+		 ((and (rational? x) (rational? y)) (= x y))
+		 ((and (flonum? x) (flonum? y)) (= x y))
+		 ((and (char? x) (char? y)) (= (char->integer x) (char->integer y)))
+		 ((and (pair? x) (pair? y))
+		  (equal?-loop (car x) (car y)) (equal?-loop (cdr x) (cdr y)))
+		 ((and (string? x) (string? y)) (equal?-loop (string->list x) (string->list y)))
+		 (else (eq? x y))))))
     equal?-loop)))

@@ -1,7 +1,7 @@
 %define T_UNDEFINED 0
 %define T_VOID 1
 %define T_NIL 2
-%define T_INTEGER 3
+%define T_RATIONAL 3
 %define T_FLOAT 4
 %define T_BOOL 5
 %define T_CHAR 6
@@ -9,16 +9,7 @@
 %define T_SYMBOL 8
 %define T_CLOSURE 9
 %define T_PAIR 10
-	
-%define CHAR_NUL 0
-%define CHAR_TAB 9
-%define CHAR_NEWLINE 10
-%define CHAR_PAGE 12
-%define CHAR_RETURN 13
-%define CHAR_SPACE 32
-%define CHAR_DOUBLEQUOTE 34
-%define CHAR_BACKSLASH 92
-	
+
 %define TYPE_SIZE 1
 %define WORD_SIZE 8
 	
@@ -31,7 +22,11 @@
 	mov %1, qword [%2+TYPE_SIZE]	
 %endmacro	
 
-%define INT_VAL SKIP_TYPE_TAG
+%define NUMERATOR SKIP_TYPE_TAG
+
+%macro DENOMINATOR 2
+	mov %1, qword [%2+TYPE_SIZE+WORD_SIZE]
+%endmacro
 
 %macro CHAR_VAL 2
 	movzx %1, byte [%2+TYPE_SIZE]
@@ -58,12 +53,6 @@
 %define CLOSURE_CODE CDR
 
 %define PVAR(n) qword [rbp+(4+n)*WORD_SIZE]
-	
-%define SOB_UNDEFINED T_UNDEFINED
-%define SOB_NIL T_NIL
-%define SOB_VOID T_VOID
-%define SOB_FALSE word T_BOOL
-%define SOB_TRUE word (1 << TYPE_SIZE | T_BOOL)
 
 ; returns %2 allocated bytes in register %1
 ; Supports using with %1 = %2
@@ -93,7 +82,6 @@
 	mov qword [%1+TYPE_SIZE], %2
 %endmacro
 
-%define MAKE_INT(r,val) MAKE_LONG_VALUE r, val, T_INTEGER
 %define MAKE_FLOAT(r,val) MAKE_LONG_VALUE r, val, T_FLOAT
 %define MAKE_CHAR(r,val) MAKE_CHAR_VALUE r, val
 
@@ -135,6 +123,12 @@
         dq %3
 %endmacro
 
+%define MAKE_RATIONAL(r, num, den) \
+	MAKE_TWO_WORDS r, T_RATIONAL, num, den
+
+%define MAKE_LITERAL_RATIONAL(num, den) \
+	MAKE_WORDS_LIT T_RATIONAL, num, den
+	
 %define MAKE_PAIR(r, car, cdr) \
         MAKE_TWO_WORDS r, T_PAIR, car, cdr
 
@@ -145,40 +139,63 @@
         MAKE_TWO_WORDS r, T_CLOSURE, env, body
 
 	
+;;; Macros and routines for printing Scheme OBjects to STDOUT
+%define CHAR_NUL 0
+%define CHAR_TAB 9
+%define CHAR_NEWLINE 10
+%define CHAR_PAGE 12
+%define CHAR_RETURN 13
+%define CHAR_SPACE 32
+%define CHAR_DOUBLEQUOTE 34
+%define CHAR_BACKSLASH 92
+	
 extern printf, malloc
 global write_sob, write_sob_if_not_void
-
 	
 write_sob_undefined:
 	push rbp
 	mov rbp, rsp
 
-	mov rax, 0
+	mov rax, qword 0
 	mov rdi, .undefined
 	call printf
 
-	leave
+	pop rbp
 	ret
 
 section .data
 .undefined:
 	db "#<undefined>", 0
 
-write_sob_integer:
+write_sob_rational:
 	push rbp
 	mov rbp, rsp
 
-	INT_VAL rsi, rsi
+	mov rdx, rsi
+	NUMERATOR rsi, rdx
+	DENOMINATOR rdx, rdx
+	
+	cmp rdx, 1
+	jne .print_fraction
+
 	mov rdi, .int_format_string
+	jmp .print
+
+.print_fraction:
+	mov rdi, .frac_format_string
+
+.print:	
 	mov rax, 0
 	call printf
 
-	leave
+	pop rbp
 	ret
 
 section .data
 .int_format_string:
 	db "%ld", 0
+.frac_format_string:
+	db "%ld/%ld", 0
 
 write_sob_float:
 	push rbp
@@ -189,12 +206,18 @@ write_sob_float:
 	mov rdi, .float_format_string
 	mov rax, 1
 
-	mov rsi, rsp
-	and rsp, -16
+	;; printf-ing floats (among other things) requires the stack be 16-byte aligned
+	;; so align the stack *downwards* (take up some extra space) if needed before
+	;; calling printf for floats
+	and rsp, -16 
 	call printf
-	mov rsp, rsi
 
-	leave
+	;; move the stack back to the way it was, cause we messed it up in order to
+	;; call printf.
+	;; Note that the `leave` instruction does exactly this (reset the stack and pop
+	;; rbp). The instructions are explicitly layed out here for clarity.
+	mov rsp, rbp
+	pop rbp
 	ret
 	
 section .data
@@ -261,7 +284,7 @@ write_sob_char:
 	mov rax, 0
 	call printf
 
-	leave
+	pop rbp
 	ret
 
 section .data
@@ -290,7 +313,7 @@ write_sob_void:
 	mov rdi, .void
 	call printf
 
-	leave
+	pop rbp
 	ret
 
 section .data
@@ -301,7 +324,7 @@ write_sob_bool:
 	push rbp
 	mov rbp, rsp
 
-	cmp word [rsi], SOB_FALSE
+	cmp word [rsi], word T_BOOL
 	je .sobFalse
 	
 	mov rdi, .true
@@ -314,7 +337,7 @@ write_sob_bool:
 	mov rax, 0
 	call printf	
 
-	leave
+	pop rbp
 	ret
 
 section .data			
@@ -331,7 +354,7 @@ write_sob_nil:
 	mov rdi, .nil
 	call printf
 
-	leave
+	pop rbp
 	ret
 
 section .data
@@ -429,7 +452,7 @@ write_sob_string:
 	mov rdi, .double_quote
 	call printf
 
-	leave
+	pop rbp
 	ret
 section .data
 .double_quote:
@@ -476,7 +499,7 @@ write_sob_pair:
 	mov rax, 0
 	call printf
 
-	leave
+	pop rbp
 	ret
 
 section .data
@@ -523,10 +546,8 @@ write_sob_pair_on_cdr:
 	pop rsi
 	call write_sob_pair_on_cdr
 
-	add rsp, 1*8
-
 .done:
-	leave
+	pop rbp
 	ret
 
 section .data
@@ -583,7 +604,7 @@ write_sob_symbol:
 	jmp .loop
 
 .done:
-	leave
+	pop rbp
 	ret
 	
 section .data
@@ -603,7 +624,7 @@ write_sob_closure:
 	mov rax, 0
 	call printf
 
-	leave
+	pop rbp
 	ret
 section .data
 .closure:
@@ -618,7 +639,7 @@ write_sob:
 section .data
 .jmp_table:
 	dq write_sob_undefined, write_sob_void, write_sob_nil
-	dq write_sob_integer, write_sob_float, write_sob_bool
+	dq write_sob_rational, write_sob_float, write_sob_bool
 	dq write_sob_char, write_sob_string, write_sob_symbol
 	dq write_sob_closure, write_sob_pair
 
@@ -626,7 +647,7 @@ section .text
 write_sob_if_not_void:
 	mov rsi, rax
 	mov bl, byte [rsi]
-	cmp bl, SOB_VOID
+	cmp bl, T_VOID
 	je .continue
 
 	call write_sob
