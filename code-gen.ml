@@ -34,72 +34,54 @@ end;;
 (*1 . remove duplicates
 2. sort topologically*)
 
-  let fixed_asts asts = 
-    let rec make_set = function
-      | [] -> []
-      | hd :: tl -> 
-        if List.mem hd tl then make_set tl 
-        else  hd::(make_set tl) in
+let rec make_set = function
+  | [] -> []
+  | hd :: tl -> 
+    if List.mem hd tl then make_set tl 
+    else  hd::(make_set tl);;
 
-    let rec andmap f s =
-            match s with
-            | [] -> true
-            | car :: cdr -> (f car) && (andmap f cdr) in
+let rec andmap f s =
+  match s with
+  | [] -> true
+  | car :: cdr -> (f car) && (andmap f cdr)
 
-    let rec improper_list_to_ocaml_list = (function
-    | Pair(a,b) -> a::(improper_list_to_ocaml_list b)
-    | s -> [s]) in
-  
-  let rec proper_list_to_ocaml_list = (function
-    | Pair(a,b) -> a::(proper_list_to_ocaml_list b)
-    | Nil -> []
-    | _ -> raise X_no_match) in
-  
-  let rec is_proper_lst = (function
-    | Pair(a,b) -> is_proper_lst b
-    | Nil -> true
-    | _ -> false ) in
-  
-  let rec is_improper_lst = (function
-    | Pair(a,b) -> is_improper_lst b
-    | Nil -> false
-    | _ -> true) in
-                    
+let rec scheme_list_to_ocaml_list = function
+  | Pair(a,b) -> a::(scheme_list_to_ocaml_list b)
+  | s -> [s];;
 
-  let is_sub_list lst1 lst2 = 
-    andmap (fun a -> List.mem a lst1) lst2 in 
-    
-  let rec scheme_list_to_ocaml_list scheme_lst =
-    (
-      if is_proper_lst scheme_lst then proper_list_to_ocaml_list scheme_lst
-      else  improper_list_to_ocaml_list scheme_lst
-    ) in
+let is_in_lst item lst =
+  match item,lst with 
+    | Pair(a1,b1),Pair(a2,b2) -> (
+        let lst1 = scheme_list_to_ocaml_list (Pair(a1,b1)) in
+        let lst2 = scheme_list_to_ocaml_list (Pair(a2,b2)) in
+          andmap (fun a -> List.mem a lst1) lst2
+    )
+    | x,Pair(a,b) -> (
+      let lst = scheme_list_to_ocaml_list (Pair(a,b)) in 
+        List.mem x lst
+    )
+    | _,_ -> false;;
 
 
-  let rec toplogy_sort  = function
-    | [] -> []
-    | hd :: tl -> 
-      ( 
-        match hd with
-          Pair(a, b) -> 
-            (
-              let sexpr_list =  (scheme_list_to_ocaml_list hd) in 
-                match (List.filter (fun e ->  is_sub_list e sexpr_list) tl) with
-                  | [] -> hd::(toplogy_sort tl)
-                  | sub_lists -> 
-                    (
-                      let lst_without_sub_lists = List.filter (fun x -> not (List.mem x sub_lists)) (List.map (scheme_list_to_ocaml_list) tl) in
-                        (toplogy_sort sub_lists) @ [sexpr_list] :: (toplogy_sort lst_without_sub_lists)
-                    )
-            )   (*TODO: check if nested sub list should be supported*) 
-        | _ ->  hd :: (toplogy_sort tl)                             
-      ) in
+let rec toplogy_sort  = function
+  | [] -> []
+  | hd :: tl -> ( 
+      let new_car = 
+        List.fold_left 
+          (fun acc a -> match is_in_lst a hd with | true -> a :: acc | false -> acc)
+          [hd]
+          tl in
+      let new_cdr = 
+        List.fold_left 
+          (fun acc a -> match is_in_lst a hd with | true ->  acc | false -> a::acc)
+          []
+          tl in
+      
+      (toplogy_sort new_car) @ (toplogy_sort new_cdr)   
 
-  let asts = make_set asts in 
-  let asts = toplogy_sort asts in
-    asts
-
-  
+      (*TODO: check if nested sub list should be supported*) 
+      (* | _ ->  hd :: (toplogy_sort tl)                              *)
+  );;
 
 let rec make_const_table asts pos table =
   match asts with 
@@ -111,21 +93,42 @@ let rec make_const_table asts pos table =
         - calc position for next entry
         - string representation of const  
       *)
-        | Char(ch) -> make_const_table cs (pos + 2) table @ [(Sexpr(c) ,pos,"T_CHAR \n" )]
+        | Char(ch) -> make_const_table cs (pos + 2) table @ [Sexpr(c) ,(pos,"T_CHAR \n" )]
         | Number(n) ->
           (match n with 
-            | Float(f) -> make_const_table cs (pos + 9) table @ [(Sexpr(c) ,pos,"T_FLOAT \n" )]
-            | Fraction(num,den) -> make_const_table cs (pos + 9) table @ [(Sexpr(c) ,pos,"T_RATIONAL \n" )]
-        | String (s) -> make_const_table cs (pos+17) table @ [(Sexpr(c), pos, "T_STRING \n")])
+            | Float(f) -> make_const_table cs (pos + 9) table @ [Sexpr(c) ,(pos,"T_FLOAT \n" )]
+            | Fraction(num,den) -> make_const_table cs (pos + 9) table @ [Sexpr(c) ,(pos,"T_RATIONAL \n" )])
+        | String (s) -> make_const_table cs (pos+17) table @ [Sexpr(c), (pos, "T_STRING \n")]
         | _ -> raise X_not_yet_implemented;;
      (*maybe add NIL and VOID*)
 
-let rec make_sexpr_list expr'_list= 
-   let lst = List.filter (function | Const'(Sexpr(e)) -> true | _ -> false) expr'_list in
-    List.map (fun Const'(Sexpr(e)) -> e) lst;;
-  
+let rec make_naive_sexpr_list asts ans = 
+  match asts with 
+   | [] -> []
+   | hd :: tl -> (
+     let curr = 
+      match hd with 
+        | Const'(c) -> (
+            match c with 
+            | Sexpr(s) -> ans @ [s]
+            | Void -> ans
+          )    
+        | If'(test,dit,dif) -> make_naive_sexpr_list [test;dit;dif] ans 
+        | Seq'(l) | Or'(l) -> make_naive_sexpr_list l ans
+        | Set'(var,e) | Def'(var,e) -> make_naive_sexpr_list [e] ans
+        | LambdaSimple'(args,body) -> make_naive_sexpr_list [body] ans
+        | LambdaOpt'(args,opt,body) -> make_naive_sexpr_list [body] ans                
+        | Applic'(proc,args) | ApplicTP'(proc,args) -> make_naive_sexpr_list ([proc] @ args) ans
+        | _ -> ans in
+     make_naive_sexpr_list tl curr)
+    
+let updated_asts asts = 
+  let naive_lst = make_naive_sexpr_list asts [] in
+  let set = make_set naive_lst in 
+    toplogy_sort set;;
+
 module Code_Gen : CODE_GEN = struct
-  let make_consts_tbl asts = make_const_table (fixed_asts (make_sexpr_list asts)) 0 [];;
+  let make_consts_tbl asts = make_const_table (updated_asts asts) 0 [];;
   let make_fvars_tbl asts = raise X_not_yet_implemented;;
   let generate consts fvars e = raise X_not_yet_implemented;;
 end;;
