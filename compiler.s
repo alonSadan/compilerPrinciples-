@@ -18,6 +18,9 @@
 %define GB(n) 1024*MB(n)
 
 
+%define SOB_NIL_ADDRESS const_tbl
+%define SOB_VOID_ADDRESS const_tbl+1
+
 %macro SKIP_TYPE_TAG 2
 	mov %1, qword [%2+TYPE_SIZE]	
 %endmacro	
@@ -73,6 +76,22 @@
 	mov byte [%1+TYPE_SIZE], %2
 %endmacro
 
+%macro MAKE_NIL_VALUE 1
+	MALLOC %1 TYPE_SIZE
+	mov byte [%1], T_NIL
+%endmacro
+
+%macro MAKE_VOID_VALUE 1
+	MALLOC %1 TYPE_SIZE
+	mov byte [%1], T_VOID
+%endmacro
+	
+%macro MAKE_BYTE_VALUE 3
+	MALLOC %1, 1+TYPE_SIZE
+	mov byte [%1], %3
+	mov byte [%1+TYPE_SIZE], %2
+%endmacro
+	
 ; Creates a long SOB with the
 ; value %2 and type %3.
 ; Returns the result in register %1
@@ -84,7 +103,10 @@
 
 %define MAKE_FLOAT(r,val) MAKE_LONG_VALUE r, val, T_FLOAT
 %define MAKE_CHAR(r,val) MAKE_CHAR_VALUE r, val
+%define MAKE_BOOL(r,val) MAKE_BYTE_VALUE r, val
 
+%define MAKE_NIL(r) MAKE_NIL_VALUE r
+%define MAKE_VOID(r) MAKE_VOID_VALUE r
 ; Create a string of length %2
 ; from char %3.
 ; Stores result in register %1
@@ -123,6 +145,7 @@
         dq %3
 %endmacro
 
+	
 %define MAKE_RATIONAL(r, num, den) \
 	MAKE_TWO_WORDS r, T_RATIONAL, num, den
 
@@ -138,7 +161,8 @@
 %define MAKE_CLOSURE(r, env, body) \
         MAKE_TWO_WORDS r, T_CLOSURE, env, body
 
-	
+%macro MAKE_NIL
+
 ;;; Macros and routines for printing Scheme OBjects to STDOUT
 %define CHAR_NUL 0
 %define CHAR_TAB 9
