@@ -18,6 +18,25 @@
     (lambda (f . args)
       (map-many f args)))))
 
+; (define fold_left 
+;     (lambda (f acc lst) 
+;       (if (null? lst) acc
+;       (fold_left f (f acc (car lst)) (cdr lst)))))
+
+	
+; (define fold_right
+;     (lambda (f acc lst) 
+;       (if ((null? lst) acc)
+;             (f (car lst) (fold_right f acc (cdr lst))))))	
+
+; (define cons*
+;   (lambda lst
+;     (if (eq? lst '()) '() 
+;         (let* ((rev_lst (reverse lst)) 
+;             	(last (car rev_lst))
+;               	(lst_without_last (reverse (cdr rev_lst))))
+;         	(fold-right cons last lst_without_last)))
+
 
 (define fold-left 
   #;(Add your implementation here
@@ -33,6 +52,8 @@
   #;(Add your implementation here
      Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
      This is on purpose, so you don't compile the library without completing this implementation by mistake.))
+
+
 
 (define append
   (let ((null? null?)
