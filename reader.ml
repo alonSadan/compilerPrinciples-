@@ -285,13 +285,15 @@ end
     let (e2, s) = (star nt_comment) s in
     (e1,s);;
 
+  exception Itay_ERR of string;;
+
   let read_sexprs string =
     let nt =  (star nt_sexpr)  in
     let (e,s) = nt (string_to_list string) in
     let (_,s2) = nt_whitespaces s in
     match e,s,s2 with
     | e,_,[] -> e
-    | _ -> raise X_no_match
+    | _ -> raise (Itay_ERR (list_to_string s2))
 
   (* ToDo: check if Case sensiticty is already implemented*)
 
