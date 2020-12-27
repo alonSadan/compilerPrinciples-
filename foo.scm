@@ -1,1 +1,1 @@
-3
+(begin (define x 5) x)
