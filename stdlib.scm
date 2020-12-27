@@ -8,7 +8,7 @@
 		  '()
 		  (cons
 		   (apply f (map-one car lists))
-		   (map-list f (map-one cdr lists))))))
+		   (map-many f (map-one cdr lists))))))
 	   (map-one
 	    (lambda (f s)
 	      (if (null? s)
@@ -18,21 +18,47 @@
     (lambda (f . args)
       (map-many f args)))))
 
-
-(define fold-left 
-  #;(Add your implementation here
-     Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
-     This is on purpose, so you don't compile the library without completing this implementation by mistake.))
-
+(define fold-left
+	(let ((null? null?)
+		(car car) (cdr cdr))
+    (lambda (f acc lst) 
+      (if (null? lst) acc
+      	(fold-left f (f acc (car lst)) (cdr lst))))))
+	
 (define fold-right
-  #;(Add your implementation here
-     Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
-     This is on purpose, so you don't compile the library without completing this implementation by mistake.))
+	(let ((null? null?)
+		(car car) (cdr cdr))
+    (lambda (f acc lst) 
+      (if (null? lst) acc
+        (f (car lst) (fold-right f acc (cdr lst)))))))	
 
+; ToDo: check if need to implement primitive reverse
 (define cons*
-  #;(Add your implementation here
-     Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
-     This is on purpose, so you don't compile the library without completing this implementation by mistake.))
+	(let ((null? null?) (cons cons)
+		(car car) (cdr cdr))	
+	(lambda lst
+		(if (null? lst) '() 
+			(let* ((rev_lst (reverse lst)) 
+					(last (car rev_lst))
+					(lst_without_last (reverse (cdr rev_lst))))
+				(fold-right cons last lst_without_last))))))
+
+; (define fold-left 
+;   #;(Add your implementation here
+;      Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
+;      This is on purpose, so you don't compile the library without completing this implementation by mistake.))
+
+; (define fold-right
+;   #;(Add your implementation here
+;      Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
+;      This is on purpose, so you don't compile the library without completing this implementation by mistake.))
+
+; (define cons*
+;   #;(Add your implementation here
+;      Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
+;      This is on purpose, so you don't compile the library without completing this implementation by mistake.))
+
+
 
 (define append
   (let ((null? null?)
