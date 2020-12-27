@@ -8,7 +8,7 @@
 		  '()
 		  (cons
 		   (apply f (map-one car lists))
-		   (map-list f (map-one cdr lists))))))
+		   (map-many f (map-one cdr lists))))))
 	   (map-one
 	    (lambda (f s)
 	      (if (null? s)
@@ -18,25 +18,30 @@
     (lambda (f . args)
       (map-many f args)))))
 
-(define fold_left 
+(define fold-left
+	(let ((null? null?)
+		(car car) (cdr cdr))
     (lambda (f acc lst) 
       (if (null? lst) acc
-      (fold_left f (f acc (car lst)) (cdr lst)))))
-
+      	(fold-left f (f acc (car lst)) (cdr lst))))))
 	
-(define fold_right
+(define fold-right
+	(let ((null? null?)
+		(car car) (cdr cdr))
     (lambda (f acc lst) 
-      (if ((null? lst) acc)
-            (f (car lst) (fold_right f acc (cdr lst))))))	
+      (if (null? lst) acc
+        (f (car lst) (fold-right f acc (cdr lst)))))))	
 
-(define 1cons*
-  (lambda lst
-    (if (eq? lst '()) '() 
-        (let* ((rev_lst (reverse lst)) 
-            	(last (car rev_lst))
-              	(lst_without_last (reverse (cdr rev_lst))))
-        	(fold-right cons last lst_without_last)))))
-
+; ToDo: check if need to implement primitive reverse
+(define cons*
+	(let ((null? null?) (cons cons)
+		(car car) (cdr cdr))	
+	(lambda lst
+		(if (null? lst) '() 
+			(let* ((rev_lst (reverse lst)) 
+					(last (car rev_lst))
+					(lst_without_last (reverse (cdr rev_lst))))
+				(fold-right cons last lst_without_last))))))
 
 ; (define fold-left 
 ;   #;(Add your implementation here

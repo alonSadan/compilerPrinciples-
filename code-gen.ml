@@ -91,15 +91,10 @@ let rec make_fvars_table asts pos table =
   match asts with 
    | [] -> table (* (string * int) list *)
    | fv::fvars -> 
-      make_fvars_table fvars (pos + 8) table @ [(fv,pos)]
+      make_fvars_table fvars (pos + 8) (table @ [(fv,pos)])
     (* make_fvars_table fvars (pos + 8) table @[(string_of_int pos)] *)
 
-
-let get_fvar_index name table = snd (List.assoc name table);;
-let get_str_fvar_index name table = string_of_int (snd (List.assoc name table));;
-
-
-let rec make_naive_sexpr_list asts ans = 
+let rec make_first_sexpr_lst asts ans = 
   match asts with 
    | [] -> ans
    | hd :: tl -> (
@@ -110,14 +105,14 @@ let rec make_naive_sexpr_list asts ans =
             | Sexpr(s) -> ans @ [s]
             | Void -> ans
           )    
-        | If'(test,dit,dif) -> make_naive_sexpr_list [test;dit;dif] ans 
-        | Seq'(l) | Or'(l) -> make_naive_sexpr_list l ans
-        | Set'(var,e) | Def'(var,e) -> make_naive_sexpr_list [e] ans
-        | LambdaSimple'(args,body) -> make_naive_sexpr_list [body] ans
-        | LambdaOpt'(args,opt,body) -> make_naive_sexpr_list [body] ans                
-        | Applic'(proc,args) | ApplicTP'(proc,args) -> make_naive_sexpr_list ([proc] @ args) ans
+        | If'(test,dit,dif) -> make_first_sexpr_lst [test;dit;dif] ans 
+        | Seq'(l) | Or'(l) -> make_first_sexpr_lst l ans
+        | Set'(var,e) | Def'(var,e) -> make_first_sexpr_lst [e] ans
+        | LambdaSimple'(args,body) -> make_first_sexpr_lst [body] ans
+        | LambdaOpt'(args,opt,body) -> make_first_sexpr_lst [body] ans                
+        | Applic'(proc,args) | ApplicTP'(proc,args) -> make_first_sexpr_lst ([proc] @ args) ans
         | _ -> ans in
-     make_naive_sexpr_list tl curr);;
+     make_first_sexpr_lst tl curr);;
 
 let rec make_naive_fvar_lst asts ans = 
   match asts with 
@@ -140,7 +135,7 @@ let rec make_naive_fvar_lst asts ans =
         make_naive_fvar_lst tl curr)
 
 let init_const_tbl_lst asts = 
-  let naive_lst = make_naive_sexpr_list asts [] in
+  let naive_lst = make_first_sexpr_lst asts [] in
   let set = make_set naive_lst in 
   let sort_set =  toplogy_sort set in
     make_set ( 
@@ -153,25 +148,23 @@ let make_fvars_table_helper asts =
     set;;
 
 
+let get_fvar_index name table = List.assoc name table;;
+let get_str_fvar_index name table = string_of_int (List.assoc name table);;
+
 let rec make_generate constant_table fvars_table e = 
   match e with 
     | Const'(c) -> "mov rax," ^ (addressInConstTable constant_table c)
     | Var'(v) -> (
       match v with
         | VarFree(name) -> "mov rax, qword"  
-          (* ^ (labelInFVarTable fvars_table name) *)
+            ^ (labelInFVarTable fvars_table name)
         | _ -> ""
     )
 
-    | _ -> ""
+    | _ -> "" 
       (* raise (ALON_ERR1 e) *)
-
-and addressInConstTable constant_table c =
-  "const_tbl+" ^ (get_str_pos c constant_table)
-
-and labelInFVarTable fvars_table name = 
-  "fvar_tbl+" ^ (get_str_fvar_index name fvars_table);;
-
+and addressInConstTable constant_table c = "const_tbl+" ^ (get_str_pos c constant_table)
+and labelInFVarTable fvars_table name = "fvar_tbl+" ^ (get_str_fvar_index name fvars_table);; 
 
 module Code_Gen : CODE_GEN = struct
   let make_consts_tbl asts = make_const_table (init_const_tbl_lst asts) 0 [];;
