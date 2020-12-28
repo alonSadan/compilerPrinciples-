@@ -152,7 +152,7 @@
         MAKE_TWO_WORDS r, T_CLOSURE, env, body
 
 %define MAKE_LITERAL_CHAR(val) MAKE_LITERAL T_CHAR, db val
-%define MAKE_LITERAL_SYMBOL(val) MAKE_LITERAL T_SYMBOL, db val
+%define MAKE_LITERAL_SYMBOL(val) MAKE_LITERAL T_SYMBOL, dq val
 %define MAKE_LITERAL_FLOAT(val) MAKE_LITERAL T_FLOAT, dq val
 %define MAKE_NIL db T_NIL
 %define MAKE_VOID db T_VOID

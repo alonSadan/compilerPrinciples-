@@ -84,7 +84,7 @@ let rec make_const_table asts pos table =
               (match n with
                 | Float(f) -> make_const_table cs (pos + 9) (table @ [Sexpr(c) ,(pos,"MAKE_LITERAL_FLOAT("^ string_of_float f ^")"  ^ str_comment_pos pos)])
                 | Fraction(num,den) -> make_const_table cs (pos + 17) (table @ [Sexpr(c) ,(pos,"MAKE_LITERAL_RATIONAL("^string_of_int num^","^string_of_int den^")" ^ str_comment_pos pos)]))
-            | String (s) -> make_const_table cs (pos+9+String.length s) (table @ [Sexpr(c), (pos, "MAKE_LITERAL_STRING \"" ^ s ^"\"" ^ str_comment_pos pos)])
+            | String (s) -> make_const_table cs (pos+9+ (String.length s)) (table @ [Sexpr(c), (pos, "MAKE_LITERAL_STRING \"" ^ s ^"\"" ^ str_comment_pos pos)])
             | Nil -> make_const_table cs (pos + 1) (table @ [Sexpr(c) ,(pos,"MAKE_NIL" ^ str_comment_pos pos)])
             | Symbol(s) -> make_const_table cs (pos + 9)
                 (table @ [Sexpr(c) ,(pos,"MAKE_LITERAL_SYMBOL(const_tbl+"^get_str_pos (Sexpr(String s)) table^")" ^ str_comment_pos pos)])
@@ -153,18 +153,14 @@ let make_fvars_table_helper asts =
   let set = make_set naive_fvar_lst @ primitive_names in
     set;;
 
-
 let get_fvar_index name table = List.assoc name table;;
 let get_str_fvar_index name table = string_of_int (List.assoc name table);;
-
 
 module Gensym : GENSYM =
    struct
      let c = ref 0
      let next s = incr c ; s ^ (string_of_int !c)
   end;;
-
-
 
 let rec make_generate constant_table fvars_table e =
   match e with
