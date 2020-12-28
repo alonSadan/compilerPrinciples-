@@ -10,29 +10,29 @@ malloc_pointer:
 ;;; here we REServe enough Quad-words (64-bit "cells") for the free variables
 ;;; each free variable has 8 bytes reserved for a 64-bit pointer to its value
 fvar_tbl:
-    resq 67
+    resq 68
 
 section .data
 const_tbl:
 MAKE_VOID 		;;0
-MAKE_LITERAL_RATIONAL(4,1)		;;1
-MAKE_LITERAL_RATIONAL(3,1)		;;18
-MAKE_BOOL(0)		;;35
-MAKE_LITERAL_STRING "whatever"		;;37
-MAKE_LITERAL_SYMBOL(const_tbl+37)		;;54
-MAKE_NIL		;;63
-MAKE_LITERAL_RATIONAL(1,1)		;;64
-MAKE_LITERAL_RATIONAL(0,1)		;;81
-MAKE_BOOL(1)		;;98
+MAKE_NIL		;;1
+MAKE_BOOL(0)		;;2
+MAKE_BOOL(1)		;;4
+MAKE_LITERAL_RATIONAL(2,1)		;;6
+MAKE_LITERAL_RATIONAL(1,1)		;;23
+MAKE_LITERAL_RATIONAL(3,1)		;;40
+MAKE_LITERAL_RATIONAL(0,1)		;;57
+MAKE_LITERAL_STRING "whatever"		;;74
+MAKE_LITERAL_SYMBOL(const_tbl+74)		;;91
 MAKE_LITERAL_RATIONAL(-1,1)		;;100
 MAKE_LITERAL_CHAR(0)		;;117
 
 ;;; These macro definitions are required for the primitive
 ;;; definitions in the epilogue to work properly
 %define SOB_VOID_ADDRESS const_tbl+0
-%define SOB_NIL_ADDRESS const_tbl+63
-%define SOB_FALSE_ADDRESS const_tbl+35
-%define SOB_TRUE_ADDRESS const_tbl+98
+%define SOB_NIL_ADDRESS const_tbl+1
+%define SOB_FALSE_ADDRESS const_tbl+2
+%define SOB_TRUE_ADDRESS const_tbl+4
 
 global main
 section .text
@@ -59,7 +59,7 @@ main:
     ;; This is where we simulate the missing (define ...) expressions
     ;; for all the primitive procedures.
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, boolean?)
-mov [fvar_tbl+328], rax
+mov [fvar_tbl+336], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, flonum?)
 mov [fvar_tbl+264], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, rational?)
@@ -73,23 +73,23 @@ mov [fvar_tbl+280], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, string?)
 mov [fvar_tbl+288], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, procedure?)
-mov [fvar_tbl+384], rax
-MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, symbol?)
 mov [fvar_tbl+392], rax
+MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, symbol?)
+mov [fvar_tbl+400], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, string_length)
 mov [fvar_tbl+200], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, string_ref)
 mov [fvar_tbl+192], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, string_set)
-mov [fvar_tbl+416], rax
+mov [fvar_tbl+424], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, make_string)
 mov [fvar_tbl+48], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, symbol_to_string)
-mov [fvar_tbl+432], rax
+mov [fvar_tbl+440], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, char_to_integer)
 mov [fvar_tbl+320], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, integer_to_char)
-mov [fvar_tbl+448], rax
+mov [fvar_tbl+456], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, exact_to_inexact)
 mov [fvar_tbl+64], rax
 MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, eq?)
@@ -115,54 +115,45 @@ user_code_fragment:
 ;;; The code you compiled will be added here.
 ;;; It will be executed immediately after the closures for 
 ;;; the primitive procedures are set up.
-
 mov [fvar_tbl+72],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
-
 
 mov [fvar_tbl+176],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
 
-
 mov [fvar_tbl+24],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
-
 
 mov [fvar_tbl+0],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
 
-
 mov [fvar_tbl+16],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
-
 
 mov [fvar_tbl+32],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
 
-
 mov [fvar_tbl+40],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
 
-
 mov [fvar_tbl+48],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
-
 
 mov [fvar_tbl+112],rax
 
@@ -172,69 +163,96 @@ mov [fvar_tbl+112],rax
 
 	call write_sob_if_not_void
 
-
 mov [fvar_tbl+216],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
-
 
 mov [fvar_tbl+104],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
 
-
 mov [fvar_tbl+120],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
-
 
 mov [fvar_tbl+136],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
 
-
 mov [fvar_tbl+144],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
-
 
 mov [fvar_tbl+160],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
 
-
 mov [fvar_tbl+168],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
-
 
 mov [fvar_tbl+248],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
 
-
 mov [fvar_tbl+232],rax
 
          mov rax, SOB_VOID_ADDRESS
 	call write_sob_if_not_void
 
-mov rax, const_tbl+35 
+mov rax, const_tbl+57
+mov [fvar_tbl+328],rax
+
+         mov rax, SOB_VOID_ADDRESS
+	call write_sob_if_not_void
+
+mov rax, const_tbl+40
+mov [fvar_tbl+328],rax
+
+         mov rax, SOB_VOID_ADDRESS
+	call write_sob_if_not_void
+
+mov rax, const_tbl+2
+ 
 cmp rax, SOB_FALSE_ADDRESS 
 
     je Lelse1 
-mov rax, const_tbl+18 
+mov rax, const_tbl+23
+ 
 jmp Lexit1 
 Lelse1: 
-mov rax, const_tbl+1
+mov rax, qword [fvar_tbl+328] 
+
 Lexit1: 
+
+	call write_sob_if_not_void
+
+mov rax, const_tbl+4
+ 
+cmp rax, SOB_FALSE_ADDRESS 
+
+    je Lelse2 
+mov rax, const_tbl+6
+mov [fvar_tbl+328],rax
+
+         mov rax, SOB_VOID_ADDRESS 
+jmp Lexit2 
+Lelse2: 
+mov rax, qword [fvar_tbl+328] 
+
+Lexit2: 
+
+	call write_sob_if_not_void
+
+mov rax, qword [fvar_tbl+328] 
 
 	call write_sob_if_not_void;;; Clean up the dummy frame, set the exit status to 0 ("success"), 
    ;;; and return from main

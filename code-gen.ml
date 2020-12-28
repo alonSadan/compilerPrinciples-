@@ -53,6 +53,8 @@ let rec make_set = function
     if List.mem hd tl then make_set tl
     else  hd::(make_set tl);;
 
+let make_set_wrapper lst = List.rev (make_set (List.rev lst))
+
 let toplogy_sort lst =
   let rec sub_lists = function
     | Pair(a,b) -> a :: (sub_lists b) @ [b]
@@ -144,7 +146,7 @@ let init_const_tbl_lst asts =
   let naive_lst = make_first_sexpr_lst asts [] in
   let set = make_set naive_lst in
   let sort_set =  toplogy_sort set in
-    make_set (
+    make_set_wrapper (
       [Void;Sexpr Nil;Sexpr (Bool false); Sexpr (Bool true)] @
       (List.map (fun e -> Sexpr(e)) sort_set));;    (*TODO check if we remove duplicates from the end of the list*)
 
@@ -165,20 +167,25 @@ module Gensym : GENSYM =
 let rec make_generate constant_table fvars_table e =
   match e with
     | Const'(c) -> make_gen_const constant_table c
-    | Var'(v) -> (
-      match v with
-        | VarFree(name) -> make_gen_free_var fvars_table name
-        | _ -> ""
-    )
+    | Var'(v) -> make_gen_var fvars_table v
     | Seq'(exprs) -> String.concat "\n" (List.map (make_generate constant_table fvars_table) exprs)
     | If'(test,dit,dif) -> make_gen_if constant_table fvars_table test dit dif
     | Or'(exprs) -> make_gen_or constant_table fvars_table exprs
-    | Def'(var, value) -> make_gen_set constant_table fvars_table var value
+    | Def'(var,value) | Set'(var,value) -> make_gen_set constant_table fvars_table var value
+    | BoxGet'(var) -> make_gen_box_get constant_table fvars_table var
+    | BoxSet'(var,value) -> make_gen_box_set constant_table fvars_table var value
     | _ -> ""
       (* raise (ALON_ERR1 e) *)
-and make_gen_const constant_table c = "mov rax, const_tbl+" ^ (get_str_pos c constant_table)
+and make_gen_const constant_table c = "mov rax, const_tbl+" ^ (get_str_pos c constant_table) ^ "\n" 
 (* "const_tbl+" ^ (get_str_pos c constant_table) *)
-and make_gen_free_var fvars_table name = "mov rax, qword fvar_tbl+" ^ (get_str_fvar_index name fvars_table)
+and make_gen_var fvars_table v =
+  match v with 
+    | VarFree(name) -> "mov rax, qword [fvar_tbl+" ^ get_str_fvar_index name fvars_table ^ "] \n"
+    | VarParam(_, minor) -> "mov rax, qword [rbp + 8 ∗ (4 + " ^ string_of_int minor ^ ")] \n"
+    | VarBound(_, major, minor) -> 
+        "mov rax, qword [rbp + 8 ∗ 2] \n
+        mov rax, qword [rax + 8 ∗ " ^ string_of_int major ^ "] \n
+        mov rax, qword [rax + 8 ∗ " ^ string_of_int minor ^ "] \n"
 
 and make_gen_if constant_table fvars_table test dit dif =
   let ind = (Gensym.next "") in
@@ -200,15 +207,39 @@ and make_gen_or constant_table fvars_table exprs =
       "cmp rax, SOB_FALSE_ADDRESS\n
       jne Lexit"^ind ^"\n" ) eps_lst) in
       ans ^ "Lexit"^ind^":"
-(*not importantkasjndkasd akjsdbakdsjb*)
+
 and make_gen_set constant_table fvars_table var value =
   let eps = make_generate constant_table fvars_table value in
   match var with
     | VarFree(name) ->
-        eps ^ "\n" ^
+        eps ^ 
         "mov [fvar_tbl+" ^ (get_str_fvar_index name fvars_table) ^ "],rax\n
          mov rax, SOB_VOID_ADDRESS"
-    | _ -> "";;
+    | VarParam(_, minor)-> 
+        eps ^
+        "mov qword [rbp + 8 ∗ (4 + " ^ string_of_int minor^ ")], rax \n
+        mov rax, SOB_VOID_ADDRESS \n"
+    | VarBound(_,major,minor) ->
+        eps ^ 
+        "mov rbx, qword [rbp + 8 ∗ 2] \n
+        mov rbx, qword [rbx + 8 ∗ " ^ string_of_int major ^ "] \n
+        mov qword [rbx + 8 ∗ " ^ string_of_int minor^ "], rax \n
+        mov rax, SOB_VOID_ADDRESS \n"
+    
+and make_gen_box_get constant_table fvars_table e =
+  let eps = make_gen_var fvars_table e in    
+  eps ^ 
+  "mov rax, qword [rax] \n"
+
+and make_gen_box_set constant_table fvars_table var value =
+  let eps_var = make_gen_var fvars_table var in
+  let eps = make_generate constant_table fvars_table value in   
+  eps ^   
+    "push rax \n
+    "^ eps_var ^"
+    pop qword [rax] \n
+    mov rax, SOB_VOID_ADDRESS \n" ;;
+
 
 module Code_Gen : CODE_GEN = struct
   let make_consts_tbl asts = make_const_table (init_const_tbl_lst asts) 0 [];;
