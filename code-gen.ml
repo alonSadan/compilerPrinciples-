@@ -57,7 +57,7 @@ let make_set_wrapper lst = List.rev (make_set (List.rev lst))
 
 let toplogy_sort lst =
   let rec sub_lists = function
-    | Pair(a,b) -> a :: (sub_lists b) @ [b]
+    | Pair(a,b) -> (sub_lists a) @ [a] @ (sub_lists b) @ [b]
     | Symbol(s) -> String(s) :: [(Symbol(s))]
     | s -> [s] in
 
@@ -177,18 +177,18 @@ let rec make_generate env constant_table fvars_table e=
     | BoxGet'(var) -> make_gen_box_get constant_table fvars_table var
     | BoxSet'(var,value) -> make_gen_box_set env constant_table fvars_table var value
     | LambdaSimple'(arglist,body) -> make_gen_lambda env constant_table fvars_table arglist body
-    (* | Applic'(proc,args) -> make_gen_applic env constant_table fvars_table proc args *)
+    | Applic'(proc,args) -> make_gen_applic env constant_table fvars_table proc args
     | _ -> ""
       (* raise (ALON_ERR1 e) *)
 and make_gen_const constant_table c = "mov rax, const_tbl+" ^ (get_str_pos c constant_table) ^ "\n" 
 and make_gen_var fvars_table v =
   match v with 
-    | VarFree(name) -> "mov rax, qword [fvar_tbl+" ^ get_str_fvar_index name fvars_table ^ "] \n"
-    | VarParam(_, minor) -> "mov rax, qword [rbp + " ^ (string_of_int (8*(4+minor))) ^"] " ^make_comment "pvar: " minor^"\n"
+    | VarFree(name) -> "mov rax, qword [fvar_tbl+" ^ get_str_fvar_index name fvars_table ^ "] \n "
+    | VarParam(_, minor) -> "mov rax, qword [rbp + " ^ (string_of_int (8*(4+minor))) ^"] " ^make_comment "pvar: " minor^" \n"
     | VarBound(_, major, minor) -> 
         "mov rax, qword [rbp + 16] \n
-        mov rax, qword [rax + " ^ (string_of_int (8*major)) ^"] \n
-        mov rax, qword [rax + " ^ (string_of_int (8*minor)) ^"] \n"
+        mov rax, qword [rax + " ^ (string_of_int (8*major)) ^"] 
+        mov rax, qword [rax + " ^ (string_of_int (8*minor)) ^"] \n" 
 
 and make_gen_if env constant_table fvars_table test dit dif=
   let ind = (Gensym.next "") in
@@ -220,13 +220,13 @@ and make_gen_set env constant_table fvars_table var value=
          mov rax, SOB_VOID_ADDRESS"
     | VarParam(_, minor)-> 
         eps ^
-        "mov qword [rbp + " ^ (string_of_int (8*(4+minor))) ^")], rax \n
+        "mov qword [rbp + " ^ (string_of_int (8*(4+minor))) ^"], rax \n
         mov rax, SOB_VOID_ADDRESS \n"
     | VarBound(_,major,minor) ->
         eps ^ 
         "mov rbx, qword [rbp + 16] \n
-        mov rbx, qword [rbx + " ^ (string_of_int (8*major)) ^"] \n
-        mov qword [rbx + " ^ (string_of_int (8*minor)) ^"], rax \n
+        mov rbx, qword [rbx + " ^ (string_of_int (8*major)) ^"] \n 
+        mov qword [rbx + " ^ (string_of_int (8*minor)) ^"], rax \n 
         mov rax, SOB_VOID_ADDRESS \n"
     
 and make_gen_box_get constant_table fvars_table e =
@@ -250,13 +250,15 @@ and make_gen_lambda env constant_table fvars_table arglist body =
   let code = 
     "Lcode"^ind^":
     push rbp 
-    mov rbp , rsp \n" 
-    ^ eps_body^
-    "leave 
+    mov rbp , rsp \n
+    ;; LAMBDA_BODY: \n" 
+    ^ eps_body ^ "\n
+    leave 
     ret \n
     Lcont"^ind^": \n" in 
 
-  "jmp Lcont"^ind^ "\n"
+  ";; Lambda_Simple: \n
+  jmp Lcont"^ind^ "\n"
   ^ code ^
   "MAKE_CLOSURE(rax, "^env^", Lcode"^ind^" ) \n" 
 
@@ -273,7 +275,11 @@ and make_gen_applic env constant_table fvars_table proc args =
   "CLOSURE_ENV r8, rax ;;store closure env in r8  (pointer register) 
   CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
   push r8  
-  call r9 \n"   
+  call r9 
+  add rsp, 8 ;; pop env
+  pop rbx ;; pop arg count
+  shl rbx, 3 ;; rbx = rbx * 8
+  add rsp, rbx ;; pop args \n"   
 ;;
 
 
