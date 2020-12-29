@@ -158,7 +158,7 @@
 %define MAKE_VOID db T_VOID
 %define MAKE_BOOL(val) MAKE_LITERAL T_BOOL, db val
 
-%define MAKE_FVAR_LABEL(index) index: resq 1
+; %define MAKE_FVAR_LABEL(index) index: resq 1
 
 ;;; Macros and routines for printing Scheme OBjects to STDOUT
 %define CHAR_NUL 0

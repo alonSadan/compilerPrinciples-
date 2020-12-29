@@ -44,7 +44,7 @@ let primitive_names =
   ["boolean?"; "flonum?"; "rational?"; "pair?"; "null?"; "char?"; "string?";                                                                                                                              "procedure?"; "symbol?"; "string-length"; "string-ref"; "string-set!";
  "make-string"; "symbol->string"; "char->integer"; "integer->char";
  "exact->inexact"; "eq?"; "+"; "*"; "/"; "="; "<"; "numerator"; "denominator";
- "gcd"];;
+ "gcd";"car";"cdr";"set-car!";"set-cdr!"];;
 
 
 let rec make_set = function
@@ -164,43 +164,46 @@ module Gensym : GENSYM =
      let next s = incr c ; s ^ (string_of_int !c)
   end;;
 
-let rec make_generate constant_table fvars_table e =
+let make_comment str num = "\t\t;;" ^ str ^ string_of_int num
+
+let rec make_generate env constant_table fvars_table e=
   match e with
     | Const'(c) -> make_gen_const constant_table c
-    | Var'(v) -> make_gen_var fvars_table v
-    | Seq'(exprs) -> String.concat "\n" (List.map (make_generate constant_table fvars_table) exprs)
-    | If'(test,dit,dif) -> make_gen_if constant_table fvars_table test dit dif
-    | Or'(exprs) -> make_gen_or constant_table fvars_table exprs
-    | Def'(var,value) | Set'(var,value) -> make_gen_set constant_table fvars_table var value
+    | Var'(v) -> make_gen_var fvars_table v 
+    | Seq'(exprs) -> String.concat "\n" (List.map (make_generate env constant_table fvars_table) exprs)
+    | If'(test,dit,dif) -> make_gen_if env constant_table fvars_table test dit dif
+    | Or'(exprs) -> make_gen_or env constant_table fvars_table exprs
+    | Def'(var,value) | Set'(var,value) -> make_gen_set env constant_table fvars_table var value 
     | BoxGet'(var) -> make_gen_box_get constant_table fvars_table var
-    | BoxSet'(var,value) -> make_gen_box_set constant_table fvars_table var value
+    | BoxSet'(var,value) -> make_gen_box_set env constant_table fvars_table var value
+    | LambdaSimple'(arglist,body) -> make_gen_lambda env constant_table fvars_table arglist body
+    (* | Applic'(proc,args) -> make_gen_applic env constant_table fvars_table proc args *)
     | _ -> ""
       (* raise (ALON_ERR1 e) *)
 and make_gen_const constant_table c = "mov rax, const_tbl+" ^ (get_str_pos c constant_table) ^ "\n" 
-(* "const_tbl+" ^ (get_str_pos c constant_table) *)
 and make_gen_var fvars_table v =
   match v with 
     | VarFree(name) -> "mov rax, qword [fvar_tbl+" ^ get_str_fvar_index name fvars_table ^ "] \n"
-    | VarParam(_, minor) -> "mov rax, qword [rbp + 8 ∗ (4 + " ^ string_of_int minor ^ ")] \n"
+    | VarParam(_, minor) -> "mov rax, qword [rbp + " ^ (string_of_int (8*(4+minor))) ^"] " ^make_comment "pvar: " minor^"\n"
     | VarBound(_, major, minor) -> 
-        "mov rax, qword [rbp + 8 ∗ 2] \n
-        mov rax, qword [rax + 8 ∗ " ^ string_of_int major ^ "] \n
-        mov rax, qword [rax + 8 ∗ " ^ string_of_int minor ^ "] \n"
+        "mov rax, qword [rbp + 16] \n
+        mov rax, qword [rax + " ^ (string_of_int (8*major)) ^"] \n
+        mov rax, qword [rax + " ^ (string_of_int (8*minor)) ^"] \n"
 
-and make_gen_if constant_table fvars_table test dit dif =
+and make_gen_if env constant_table fvars_table test dit dif=
   let ind = (Gensym.next "") in
-  (make_generate constant_table fvars_table test) ^ " \n" ^
+  (make_generate env constant_table fvars_table test) ^ " \n" ^
   "cmp rax, SOB_FALSE_ADDRESS \n
     je Lelse" ^ ind ^ " \n" ^
-  (make_generate constant_table fvars_table dit) ^ " \n" ^
+  (make_generate env constant_table fvars_table dit) ^ " \n" ^
   "jmp Lexit"^ind^" \n" ^
   "Lelse"^ind^ ": \n" ^
-  (make_generate constant_table fvars_table dif) ^ "\n" ^
+  (make_generate env constant_table fvars_table dif) ^ "\n" ^
    "Lexit"^ind^": \n"
 
-and make_gen_or constant_table fvars_table exprs =
+and make_gen_or env constant_table fvars_table exprs=
   let ind = (Gensym.next "") in
-  let eps_lst = List.map (make_generate constant_table fvars_table) exprs in
+  let eps_lst = List.map (make_generate env constant_table fvars_table) exprs in
   let ans =
    String.concat "\n"
     (List.map (fun e-> e ^ "\n" ^
@@ -208,8 +211,8 @@ and make_gen_or constant_table fvars_table exprs =
       jne Lexit"^ind ^"\n" ) eps_lst) in
       ans ^ "Lexit"^ind^":"
 
-and make_gen_set constant_table fvars_table var value =
-  let eps = make_generate constant_table fvars_table value in
+and make_gen_set env constant_table fvars_table var value=
+  let eps = make_generate env constant_table fvars_table value in
   match var with
     | VarFree(name) ->
         eps ^ 
@@ -217,13 +220,13 @@ and make_gen_set constant_table fvars_table var value =
          mov rax, SOB_VOID_ADDRESS"
     | VarParam(_, minor)-> 
         eps ^
-        "mov qword [rbp + 8 ∗ (4 + " ^ string_of_int minor^ ")], rax \n
+        "mov qword [rbp + " ^ (string_of_int (8*(4+minor))) ^")], rax \n
         mov rax, SOB_VOID_ADDRESS \n"
     | VarBound(_,major,minor) ->
         eps ^ 
-        "mov rbx, qword [rbp + 8 ∗ 2] \n
-        mov rbx, qword [rbx + 8 ∗ " ^ string_of_int major ^ "] \n
-        mov qword [rbx + 8 ∗ " ^ string_of_int minor^ "], rax \n
+        "mov rbx, qword [rbp + 16] \n
+        mov rbx, qword [rbx + " ^ (string_of_int (8*major)) ^"] \n
+        mov qword [rbx + " ^ (string_of_int (8*minor)) ^"], rax \n
         mov rax, SOB_VOID_ADDRESS \n"
     
 and make_gen_box_get constant_table fvars_table e =
@@ -231,20 +234,53 @@ and make_gen_box_get constant_table fvars_table e =
   eps ^ 
   "mov rax, qword [rax] \n"
 
-and make_gen_box_set constant_table fvars_table var value =
+and make_gen_box_set env constant_table fvars_table var value =
   let eps_var = make_gen_var fvars_table var in
-  let eps = make_generate constant_table fvars_table value in   
+  let eps = make_generate env constant_table fvars_table value in   
   eps ^   
     "push rax \n
     "^ eps_var ^"
     pop qword [rax] \n
-    mov rax, SOB_VOID_ADDRESS \n" ;;
+    mov rax, SOB_VOID_ADDRESS \n" 
+and make_gen_lambda env constant_table fvars_table arglist body =
+  (*only for empty lex env: make closure without extend env
+  ToDo: maybe also give lcode,lbody another ind (they share same instance with the IF labels)*)
+  let ind = (Gensym.next "") in
+  let eps_body = make_generate env constant_table fvars_table body in
+  let code = 
+    "Lcode"^ind^":
+    push rbp 
+    mov rbp , rsp \n" 
+    ^ eps_body^
+    "leave 
+    ret \n
+    Lcont"^ind^": \n" in 
+
+  "jmp Lcont"^ind^ "\n"
+  ^ code ^
+  "MAKE_CLOSURE(rax, "^env^", Lcode"^ind^" ) \n" 
+
+and make_gen_applic env constant_table fvars_table proc args =
+  (* ToDo: maybe also add magic number to stack  *)
+  let eps_lst = List.map (make_generate env constant_table fvars_table) args in
+  let eps_proc = make_generate env constant_table fvars_table proc in 
+  let ans_args = String.concat "\n" (List.map (fun e-> e ^ "push rax \n") eps_lst) in
+  ";;APPLIC: \n" ^ 
+  ";;APPLIC_args: \n" ^
+  ans_args ^ "push "^string_of_int (List.length args) ^" \n" 
+  ^ ";; APPLIC_proc: \n"
+  ^ eps_proc ^ 
+  "CLOSURE_ENV r8, rax ;;store closure env in r8  (pointer register) 
+  CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
+  push r8  
+  call r9 \n"   
+;;
 
 
 module Code_Gen : CODE_GEN = struct
   let make_consts_tbl asts = make_const_table (init_const_tbl_lst asts) 0 [];;
   let make_fvars_tbl asts = make_fvars_table (make_fvars_table_helper asts) 0 [];;
-  let generate consts fvars e = make_generate consts fvars e;;
+  let generate consts fvars e = make_generate "SOB_NIL_ADDRESS" consts fvars e ;;
 end;;
 
 

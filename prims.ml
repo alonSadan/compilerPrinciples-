@@ -221,12 +221,10 @@ module Prims : PRIMS = struct
 
         "MAKE_PAIR (rax, rsi, rdi)", make_binary,"cons";
 
-        "CAR rsi, rsi  ;; put car address in rsi
-        mov qword[rsi], rdi  ;; give car a new value
+        "mov qword[rsi+TYPE_SIZE], rdi  ;; give car a new value
         mov rax, SOB_VOID_ADDRESS  ;; return void ",make_binary,"set_car";
 
-        "CDR rsi, rsi  ;; put car address in rsi
-        mov qword[rsi], rdi  ;; give car a new value
+        "mov qword[rsi+TYPE_SIZE+WORD_SIZE], rdi  ;; give car a new value
         mov rax, SOB_VOID_ADDRESS  ;; return void ",make_binary,"set_cdr";
 
     (* string ops *)

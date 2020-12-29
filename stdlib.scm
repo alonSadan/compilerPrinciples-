@@ -33,9 +33,12 @@
         (f (car lst) (fold-right f acc (cdr lst)))))))	
 
 ; ToDo: check if need to implement primitive reverse
+
 (define cons*
-	(let ((null? null?) (cons cons)
-		(car car) (cdr cdr))	
+	(let* ((null? null?) (cons cons)
+		(car car) (cdr cdr)
+		(reverse 
+			(lambda (lst) (fold-left (lambda (acc x) (cons x acc)) '() lst))))	
 	(lambda lst
 		(if (null? lst) '() 
 			(let* ((rev_lst (reverse lst)) 
