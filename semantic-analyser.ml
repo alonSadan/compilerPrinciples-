@@ -593,7 +593,8 @@ module Semantics : SEMANTICS = struct
 
   let annotate_lexical_addresses e = annotate_lexical_expr e [];;
 
-  let annotate_tail_calls e = annotate_tail e false;;
+  let annotate_tail_calls e = e;;
+    (* annotate_tail e false;; *)
   (*raise X_not_yet_implemented;;*)
 
   let box_set e = make_box e [];;

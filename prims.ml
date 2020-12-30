@@ -4,13 +4,12 @@
    The module works by defining a hierarchy of templates, which call each other
    to form complete routines. See the inline comments below for more information
    on the templates and the individual routines.
-
    Note that the implementation below contain no error handling or correctness-checking
    of any kind. This is because we will not test your compilers on invalid input.
    However, adding correctness-checking and error handling *as general templates* would be
    rather simple.
  *)
-module type PRIMS = sig
+ module type PRIMS = sig
   val procs : string;;
 end
 
@@ -96,7 +95,6 @@ module Prims : PRIMS = struct
        of the two implementations to call (by probing the types of the operands).
      - The high-level implementations (see stdlib.scm) make use of a high-level dispatcher, that is in charge
        of performing type conversions as necessary to satisfy the pre-conditions of the low-level implementations.
-
      Operations on floating-point operands:
      -------------------------------------
      The implementations of binary floating point arithmetic operations contain almost identical code. The
@@ -106,7 +104,6 @@ module Prims : PRIMS = struct
      on the heap with the result, and store the address of the sob_float in rax as the return value.
      This allows us to easily abstract this code into a template that requires a label name and its matching
      arithmetic instruction (which are paired up in the op_map).
-
      Operations on fractional operands:
      ----------------------------------
      The addition and multiplication operations on rational numbers are similar to each other: both load 2 arguments,
@@ -115,11 +112,9 @@ module Prims : PRIMS = struct
      are the routine name (label), and the implementation of the arithmetic operation itself.
      This allows us to easily abstract this code into a template that requires a label name and its matching
      arithmetic instruction (which are paired up in the op_map).
-
      Unlike in the case of floating point arithmetic, rational division is treated differently, and is implemented by
      using the identity (a/b) / (c/d) == (a/b) * (d/c).
      This is done by inverting the second arg (in PVAR(1)) and tail-calling fraction multiplication (`jmp mul`).
-
      Comparators:
      ------------
      While the implementation of the Comparators is slightly more complex, since they make use of `return_boolean`,

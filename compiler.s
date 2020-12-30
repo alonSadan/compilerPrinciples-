@@ -18,6 +18,7 @@
 %define GB(n) 1024*MB(n)
 
 
+
 %macro SKIP_TYPE_TAG 2
 	mov %1, qword [%2+TYPE_SIZE]
 %endmacro
@@ -52,6 +53,7 @@
 
 %define CLOSURE_CODE CDR
 
+%define ARGS_NUMBER	qword[rbp+3*WORD_SIZE]
 %define PVAR(n) qword [rbp+(4+n)*WORD_SIZE]
 
 ; returns %2 allocated bytes in register %1
@@ -115,6 +117,12 @@
         mov byte [%1], %2
         mov qword [%1+TYPE_SIZE], %3
         mov qword [%1+TYPE_SIZE+WORD_SIZE], %4
+%endmacro
+
+%macro MAKE_LINK 3
+        MALLOC %1, WORD_SIZE*2    
+        mov qword [%1], %2
+        mov qword [%1+WORD_SIZE], %3
 %endmacro
 
 %macro MAKE_WORDS_LIT 3
