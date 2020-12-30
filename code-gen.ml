@@ -46,17 +46,38 @@ let primitive_names =
  "exact->inexact"; "eq?"; "+"; "*"; "/"; "="; "<"; "numerator"; "denominator";
  "gcd";"car";"cdr";"set-car!";"set-cdr!"];;
 
+
 let rec make_set = function
+ | [] -> []
+ | hd :: tl ->
+   if List.mem hd tl then make_set tl
+   else  hd::(make_set tl);;
+
+
+let rec make_set_sexpr = function
   | [] -> []
   | hd :: tl ->
-    (* ToDo: maybe change: 
-    from: List.mem hd tl
-    to: List.exists (fun x -> sexpr_eq hd x) tl
-    *)
-    if List.mem hd tl then make_set tl
-    else  hd::(make_set tl);;
+    if List.exists (fun x -> sexpr_eq hd x) tl then make_set_sexpr tl
+    else  hd::(make_set_sexpr tl);;
+
+let rec make_set_constant = function
+  | [] -> []
+  | hd :: tl ->
+    if List.exists
+      (function 
+      | Void -> (
+        match hd with 
+        | Void -> true 
+        | Sexpr(_) -> false)
+      | Sexpr(x) -> (
+        match hd with 
+        | Void -> false 
+        | Sexpr(y) -> sexpr_eq x y) 
+      ) tl then make_set_constant tl
+    else  hd::(make_set_constant tl);;
+
     
-let make_set_wrapper lst = List.rev (make_set (List.rev lst))
+let make_set_constant_wrapper lst = List.rev (make_set_constant (List.rev lst))
 
 let toplogy_sort lst =
   let rec sub_lists = function
@@ -125,7 +146,7 @@ let rec make_first_sexpr_lst asts ans =
         | _ -> ans in
      make_first_sexpr_lst tl curr);;
 
-let rec make_naive_fvar_lst asts ans =
+let rec make_init_fvar_lst asts ans =
   match asts with
    | [] -> ans
    | hd :: tl -> (
@@ -136,26 +157,26 @@ let rec make_naive_fvar_lst asts ans =
             | VarFree(name) -> ans @ [name]
             | _ -> ans
         )
-        | If'(test,dit,dif) -> make_naive_fvar_lst [test;dit;dif] ans
-        | Seq'(l) | Or'(l) -> make_naive_fvar_lst l ans
-        | Set'(var,e) | Def'(var,e) -> make_naive_fvar_lst [e] (make_naive_fvar_lst [(Var'(var))] ans)
-        | LambdaSimple'(args,body) -> make_naive_fvar_lst [body] ans
-        | LambdaOpt'(args,opt,body) -> make_naive_fvar_lst [body] ans
-        | Applic'(proc,args) | ApplicTP'(proc,args) -> make_naive_fvar_lst ([proc] @ args) ans
+        | If'(test,dit,dif) -> make_init_fvar_lst [test;dit;dif] ans
+        | Seq'(l) | Or'(l) -> make_init_fvar_lst l ans
+        | Set'(var,e) | Def'(var,e) -> make_init_fvar_lst [e] (make_init_fvar_lst [(Var'(var))] ans)
+        | LambdaSimple'(args,body) -> make_init_fvar_lst [body] ans
+        | LambdaOpt'(args,opt,body) -> make_init_fvar_lst [body] ans
+        | Applic'(proc,args) | ApplicTP'(proc,args) -> make_init_fvar_lst ([proc] @ args) ans
         | _ -> ans in
-        make_naive_fvar_lst tl curr);;
+        make_init_fvar_lst tl curr);;
 
 let init_const_tbl_lst asts =
   let naive_lst = make_first_sexpr_lst asts [] in
-  let set = make_set naive_lst in
+  let set = make_set_sexpr naive_lst in
   let sort_set =  toplogy_sort set in
-    make_set_wrapper (
+    make_set_constant_wrapper (
       [Void;Sexpr Nil;Sexpr (Bool false); Sexpr (Bool true)] @
       (List.map (fun e -> Sexpr(e)) sort_set));;    (*TODO check if we remove duplicates from the end of the list*)
 
 let make_fvars_table_helper asts =
-  let naive_fvar_lst = make_naive_fvar_lst asts [] in
-  let set = make_set  primitive_names @ naive_fvar_lst in
+  let naive_fvar_lst = make_init_fvar_lst asts [] in
+  let set = (make_set primitive_names) @ naive_fvar_lst in
     set;;
 
 let get_fvar_index name table = List.assoc name table;;
