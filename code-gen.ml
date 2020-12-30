@@ -46,13 +46,16 @@ let primitive_names =
  "exact->inexact"; "eq?"; "+"; "*"; "/"; "="; "<"; "numerator"; "denominator";
  "gcd";"car";"cdr";"set-car!";"set-cdr!"];;
 
-
 let rec make_set = function
   | [] -> []
   | hd :: tl ->
+    (* ToDo: maybe change: 
+    from: List.mem hd tl
+    to: List.exists (fun x -> sexpr_eq hd x) tl
+    *)
     if List.mem hd tl then make_set tl
     else  hd::(make_set tl);;
-
+    
 let make_set_wrapper lst = List.rev (make_set (List.rev lst))
 
 let toplogy_sort lst =
@@ -152,7 +155,7 @@ let init_const_tbl_lst asts =
 
 let make_fvars_table_helper asts =
   let naive_fvar_lst = make_naive_fvar_lst asts [] in
-  let set = make_set naive_fvar_lst @ primitive_names in
+  let set = make_set  primitive_names @ naive_fvar_lst in
     set;;
 
 let get_fvar_index name table = List.assoc name table;;
