@@ -190,18 +190,18 @@ end;;
 
 let make_comment str num = "\t\t;;" ^ str ^ string_of_int num
 
-let rec make_generate env constant_table fvars_table e=
+let rec make_generate  constant_table fvars_table e=
   match e with
   | Const'(c) -> make_gen_const constant_table c
   | Var'(v) -> make_gen_var fvars_table v
-  | Seq'(exprs) -> String.concat "\n" (List.map (make_generate env constant_table fvars_table) exprs)
-  | If'(test,dit,dif) -> make_gen_if env constant_table fvars_table test dit dif
-  | Or'(exprs) -> make_gen_or env constant_table fvars_table exprs
-  | Def'(var,value) | Set'(var,value) -> make_gen_set env constant_table fvars_table var value
+  | Seq'(exprs) -> String.concat "\n" (List.map (make_generate  constant_table fvars_table) exprs)
+  | If'(test,dit,dif) -> make_gen_if  constant_table fvars_table test dit dif
+  | Or'(exprs) -> make_gen_or  constant_table fvars_table exprs
+  | Def'(var,value) | Set'(var,value) -> make_gen_set  constant_table fvars_table var value
   | BoxGet'(var) -> make_gen_box_get constant_table fvars_table var
-  | BoxSet'(var,value) -> make_gen_box_set env constant_table fvars_table var value
-  | LambdaSimple'(arglist,body) -> make_gen_lambda env constant_table fvars_table arglist body
-  | Applic'(proc,args) -> make_gen_applic env constant_table fvars_table proc args
+  | BoxSet'(var,value) -> make_gen_box_set  constant_table fvars_table var value
+  | LambdaSimple'(arglist,body) -> make_gen_lambda  constant_table fvars_table arglist body
+  (* | Applic'(proc,args) -> make_gen_applic  constant_table fvars_table proc args *)
   | _ -> ""
 (* raise (ALON_ERR1 e) *)
 and make_gen_const constant_table c = "mov rax, const_tbl+" ^ (get_str_pos c constant_table) ^ "\n"
@@ -214,20 +214,20 @@ and make_gen_var fvars_table v =
         mov rax, qword [rax + " ^ (string_of_int (8*major)) ^"]
         mov rax, qword [rax + " ^ (string_of_int (8*minor)) ^"] \n"
 
-and make_gen_if env constant_table fvars_table test dit dif=
+and make_gen_if  constant_table fvars_table test dit dif=
   let ind = (Gensym.next "") in
-  (make_generate env constant_table fvars_table test) ^ " \n" ^
+  (make_generate  constant_table fvars_table test) ^ " \n" ^
   "cmp rax, SOB_FALSE_ADDRESS \n
     je Lelse" ^ ind ^ " \n" ^
-  (make_generate env constant_table fvars_table dit) ^ " \n" ^
+  (make_generate  constant_table fvars_table dit) ^ " \n" ^
   "jmp Lexit"^ind^" \n" ^
   "Lelse"^ind^ ": \n" ^
-  (make_generate env constant_table fvars_table dif) ^ "\n" ^
+  (make_generate  constant_table fvars_table dif) ^ "\n" ^
   "Lexit"^ind^": \n"
 
-and make_gen_or env constant_table fvars_table exprs=
+and make_gen_or  constant_table fvars_table exprs=
   let ind = (Gensym.next "") in
-  let eps_lst = List.map (make_generate env constant_table fvars_table) exprs in
+  let eps_lst = List.map (make_generate  constant_table fvars_table) exprs in
   let ans =
     String.concat "\n"
       (List.map (fun e-> e ^ "\n" ^
@@ -235,8 +235,8 @@ and make_gen_or env constant_table fvars_table exprs=
       jne Lexit"^ind ^"\n" ) eps_lst) in
   ans ^ "Lexit"^ind^":"
 
-and make_gen_set env constant_table fvars_table var value=
-  let eps = make_generate env constant_table fvars_table value in
+and make_gen_set  constant_table fvars_table var value=
+  let eps = make_generate  constant_table fvars_table value in
   match var with
   | VarFree(name) ->
     eps ^
@@ -258,37 +258,81 @@ and make_gen_box_get constant_table fvars_table e =
   eps ^
   "mov rax, qword [rax] \n"
 
-and make_gen_box_set env constant_table fvars_table var value =
+and make_gen_box_set  constant_table fvars_table var value =
   let eps_var = make_gen_var fvars_table var in
-  let eps = make_generate env constant_table fvars_table value in
+  let eps = make_generate  constant_table fvars_table value in
   eps ^
   "push rax \n
     "^ eps_var ^"
     pop qword [rax] \n
     mov rax, SOB_VOID_ADDRESS \n"
-and make_gen_lambda env constant_table fvars_table arglist body =
-  (*only for empty lex env: make closure without extend env
+and make_gen_lambda  constant_table fvars_table arglist body =
+  (*only for empty lex : make closure without extend 
     ToDo: maybe also give lcode,lbody another ind (they share same instance with the IF labels)*)
+    (* LEXICAL_ENV = [rbp+16] *)
+  
+  let ind = (Gensym.next "") in   
+  (* LEXICAL_ENV = null => { void* LEXICAL_ENV = malloc(size_of word), *LEXICAL = null }   *)
+  let alloc_first_env = 
+    "cmp LEXICAL_ENV, SOB_NIL_ADDRESS  
+    jne end_first_alloc"^ind^" \n 
+    MALLOC rbx, WORD_SIZE 
+    mov qword [rbx],SOB_NIL_ADDRESS
+    mov LEXICAL_ENV, rbx 
+    end_first_alloc"^ind^":\n" in
+  
+  (* calc |ENV| and store it in rcx *)
+  let get_env_size =
+    "mov rcx, 0
+    mov rbx, LEXICAL_ENV 
+    mov rcx, 0 
+    l_env_counter"^ind^":
+    \t cmp qword [rbx], SOB_NIL_ADDRESS 
+    \t je l_env_counter_end"^ind^" 
+    \t add rbx, WORD_SIZE 
+    \t inc rcx 
+    \t jmp l_env_counter"^ind^" 
+    l_env_counter_end"^ind^":
+    " in
 
-  let link =
-    "MALLOC r9 WORD_SIZE \n
-    mov qword r9,"^env^";;point cdr of new link to old env \n
-    MAKE_LINK r13, r8, r9 \n
-    mov [r9] ebx"
+  (* 1. alloc ext_env and store and store it in rdx
+  2. store current env in rbx *)
+  let allocate_ext_env = 
+    "mov rbx,LEXICAL_ENV
+    inc rcx 
+    MALLOC rdx, rcx 
+    " in
 
-  let num_of_args_in_rbx = "mov rbx, ARGS_NUMBER ;; get number of args \n" in
+  (* using loop opertator that works with rcx*)
+  let copy_pointers = 
+    "dec rcx \n
+    lcopy"^ind^":
+    \t mov rax, qword[rbx + WORD_SIZE*rcx] 
+    \t mov qword [rdx + WORD_SIZE*rcx], rax 
+    \t loop lcopy"^ind^" \n
+    mov rax,qword[rbx] 
+    mov qword[rdx],rax 
+    " in 
+
+  let num_of_args = "mov rbx, ARGS_NUMBER ;; get number of args \n" in
   let minors_size ="shl rbx, 3  ;;mul with size of word (array of pointers) \n" in
   let minors  = "MALLOC rcx, rbx ;; allocate minors\n" in
-  let insert_to_link = "mov qword [r8], rcx ;; put minors in link car \n" in
   let rec alloc_minors ind =
     if ind = (List.length arglist) then ""
-    else "mov rdx,PVAR("^string_of_int ind^") \n mov qword[rcx+"^string_of_int (8*ind) ^"], rdx ;; copy arg from stack to mnor array in env \n"
+    else 
+    "mov rax,PVAR("^string_of_int ind^") \n 
+    mov qword[rcx+"^string_of_int (8*ind) ^"], rax ;; copy arg from stack to mnor array in env \n"
     ^ (alloc_minors (ind + 1)) in
 
-  let make_ext_env = num_of_args_in_rbx^minors_size^minors^insert_to_link^(alloc_minors 0)^link in
+  let set_lex_env = 
+    "mov qword [rdx], rcx ;; load minors \n
+    mov LEXICAL_ENV,rdx
+    " in
+  let make_ext_env = 
+    alloc_first_env^get_env_size^allocate_ext_env^copy_pointers^
+    num_of_args^minors_size^minors^set_lex_env^(alloc_minors 0)^set_lex_env in
 
-  let ind = (Gensym.next "") in
-  let eps_body = make_generate "r13" constant_table fvars_table body in
+  let eps_body = make_generate constant_table fvars_table body in
   let code =
     "Lcode"^ind^":
     push rbp
@@ -303,12 +347,13 @@ and make_gen_lambda env constant_table fvars_table arglist body =
   "^make_ext_env^" \n
   jmp Lcont"^ind^ "\n"
   ^ code ^
-  "MAKE_CLOSURE(rax, r13, Lcode"^ind^" ) \n"
+  "mov rbx,LEXICAL_ENV \n
+  MAKE_CLOSURE(rax, rbx, Lcode"^ind^" ) \n"
 
-and make_gen_applic env constant_table fvars_table proc args =
+and make_gen_applic  constant_table fvars_table proc args =
   (* ToDo: maybe also add magic number to stack  *)
-  let eps_lst = List.map (make_generate env constant_table fvars_table) args in
-  let eps_proc = make_generate env constant_table fvars_table proc in
+  let eps_lst = List.map (make_generate  constant_table fvars_table) args in
+  let eps_proc = make_generate  constant_table fvars_table proc in
   let ans_args = String.concat "\n" (List.map (fun e-> e ^ "push rax \n") eps_lst) in
   ";;APPLIC: \n" ^
   ";;APPLIC_args: \n" ^
@@ -329,7 +374,7 @@ and make_gen_applic env constant_table fvars_table proc args =
 module Code_Gen : CODE_GEN = struct
   let make_consts_tbl asts = make_const_table (init_const_tbl_lst asts) 0 [];;
   let make_fvars_tbl asts = make_fvars_table (make_fvars_table_helper asts) 0 [];;
-  let generate consts fvars e = make_generate "SOB_NIL_ADDRESS" consts fvars e ;;
+  let generate consts fvars e = make_generate consts fvars e ;;
 end;;
 
 

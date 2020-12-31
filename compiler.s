@@ -53,6 +53,7 @@
 
 %define CLOSURE_CODE CDR
 
+%define LEXICAL_ENV	qword[rbp+2*WORD_SIZE]
 %define ARGS_NUMBER	qword[rbp+3*WORD_SIZE]
 %define PVAR(n) qword [rbp+(4+n)*WORD_SIZE]
 
@@ -119,11 +120,11 @@
         mov qword [%1+TYPE_SIZE+WORD_SIZE], %4
 %endmacro
 
-%macro MAKE_LINK 3
-        MALLOC %1, WORD_SIZE*2    
-        mov qword [%1], %2
-        mov qword [%1+WORD_SIZE], %3
-%endmacro
+; %macro MAKE_LINK 3
+;         MALLOC %1, WORD_SIZE*2    
+;         mov qword [%1], %2
+;         mov qword [%1+WORD_SIZE], %3
+; %endmacro
 
 %macro MAKE_WORDS_LIT 3
 	db %1
