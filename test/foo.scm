@@ -1,5 +1,5 @@
-; #t 
-; #f 
+; #t
+; #f
 
 ; '(1 2 3 4 5 6)
 ; "abc"
@@ -15,11 +15,11 @@
 ; (car '(7 8))
 ; (cdr '(7 8))
 
-(define my_plus 
+(define my_plus
     (lambda (x y) (+ x y)))
 (my_plus 1 2)
 
-(define my_plus2 
-    (lambda (x y) 
+(define my_plus2
+    (lambda (x y)
         (lambda (z) (+ x y z))))
 ((my_plus2 1 2) 3)
