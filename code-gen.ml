@@ -276,7 +276,7 @@ and make_gen_lambda  constant_table fvars_table arglist body =
   let alloc_first_env = 
     "cmp LEXICAL_ENV, SOB_NIL_ADDRESS  
     jne end_first_alloc"^ind^" \n 
-    MALLOC rbx, WORD_SIZE 
+    MALLOC rbx, WORD_SIZE \n
     mov qword [rbx],SOB_NIL_ADDRESS
     mov LEXICAL_ENV, rbx 
     end_first_alloc"^ind^":\n" in
@@ -296,10 +296,12 @@ and make_gen_lambda  constant_table fvars_table arglist body =
   (* 1. alloc ext_env and store and store it in rdx
   2. store current env in rbx *)
   let allocate_ext_env = 
-    "mov rbx,LEXICAL_ENV
+    ";; get old env \n
+    mov rbx,LEXICAL_ENV 
     inc rcx 
     mov rax,rcx
     shl rax,3
+    ;; allocated new env size |env|+1 \n
     MALLOC rdx, rax 
     dec rcx\n" in
 
@@ -307,6 +309,7 @@ and make_gen_lambda  constant_table fvars_table arglist body =
   let copy_pointers = 
     
     "lcopy"^ind^":
+    ;; take arguments from old env and copy them
     \t mov rax, qword[rbx + WORD_SIZE*rcx] 
     \t mov qword [rdx + WORD_SIZE*rcx + WORD_SIZE], rax
     \t cmp rcx,0
@@ -316,15 +319,25 @@ and make_gen_lambda  constant_table fvars_table arglist body =
     l_end_copy"^ind^":\n
     " in 
 
-  let num_of_args = "mov rbx, ARGS_NUMBER ;; get number of args \n" in
+  let num_of_args = 
+    "mov rcx,0
+    mov rbx, ARGS_NUMBER ;; get number of args \n
+    cmp rbx,0
+    jz l_end_copy_minors"^ind^"\n" in
   let minors_size ="shl rbx, 3  ;;mul with size of word (array of pointers) \n" in
   let minors  = "MALLOC rcx, rbx ;; allocate minors\n" in
-  let rec alloc_minors ind =
-    if ind = (List.length arglist) then ""
-    else 
-    "mov rax,PVAR("^string_of_int ind^") \n 
-    mov qword[rcx+"^string_of_int (8*ind) ^"], rax ;; copy arg from stack to mnor array in env \n"
-    ^ (alloc_minors (ind + 1)) in
+  let alloc_minors =
+    (* if ind = (List.length arglist) then ""
+    else  *)
+    "dec rbx
+    copy_minors"^ind^":\n
+    \t mov rax,PVAR(rbx) ;; get n-1 param from stack  \n 
+    \t mov qword[rcx+rbx*WORD_SIZE], rax ;; copy arg from stack to minor array in env \n 
+    \t cmp rbx, 0
+    \t jz l_end_copy_minors"^ind^"
+    \t dec rbx
+    \t jmp copy_minors"^ind^"
+    l_end_copy_minors"^ind^":" in
 
   let set_lex_env = 
     "mov qword [rdx], rcx ;; load minors to extenv[0] \n
@@ -332,7 +345,7 @@ and make_gen_lambda  constant_table fvars_table arglist body =
     " in
   let make_ext_env = 
     alloc_first_env^get_env_size^allocate_ext_env^copy_pointers^
-    num_of_args^minors_size^minors^(alloc_minors 0)^set_lex_env in
+    num_of_args^minors_size^minors^alloc_minors^set_lex_env in
 
   let eps_body = make_generate constant_table fvars_table body in
   let code =
