@@ -298,14 +298,18 @@ and make_gen_lambda  constant_table fvars_table arglist body =
   let allocate_ext_env =
     ";; get old env \n
     mov rbx,LEXICAL_ENV
+    ;; we need to allocate |env+1| so we inc rcx which holds the length of the env list
     inc rcx
     mov rax,rcx
+    ;; leave place for Nil env
+    inc rax
     shl rax,3
     ;; allocated new env size |env|+1 \n
     MALLOC rdx, rax
-    dec rcx\n" in
+    ;; decrement rcx because we want to approch the n'th env and not n+1
+    dec rcx\n
+    " in
 
-  (* using loop opertator that works with rcx*)
   let copy_pointers =
 
     "lcopy"^ind^":
@@ -331,7 +335,7 @@ and make_gen_lambda  constant_table fvars_table arglist body =
     else  *)
     "dec rbx
     copy_minors"^ind^":\n
-    \t mov rax,PVAR(rbx) ;; get n-1 param from stack  \n
+    \t mov rax,PVAR(rbx) \n
     \t mov qword[rcx+rbx*WORD_SIZE], rax ;; copy arg from stack to minor array in env \n
     \t cmp rbx, 0
     \t jz l_end_copy_minors"^ind^"

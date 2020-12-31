@@ -15,11 +15,12 @@
 ; (car '(7 8))
 ; (cdr '(7 8))
 
-(define my_plus
-    (lambda (x y) (+ x y)))
-(my_plus 1 2)
-
+; (define my_plus
+;     (lambda (x y) (+ x y)))
+; (my_plus 1 2)
 (define my_plus2
-    (lambda (x y)
-        (lambda (z) (+ x y z))))
-((my_plus2 1 2) 3)
+    (lambda(x) (lambda (y z) (+ y z 100))))
+((my_plus2 1 ) 2 3)
+
+; (define my_plus3 (lambda (z) (lambda (x y) (+ x y z))))
+; ((my_plus3 4) 5 6)
