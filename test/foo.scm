@@ -1,4 +1,4 @@
-#t 
+; #t 
 ; #f 
 
 ; '(1 2 3 4 5 6)
@@ -11,6 +11,15 @@
 ; (if #t (set! x 2) x)
 ; x
 
+; (+ 50 50)
 ; (car '(7 8))
 ; (cdr '(7 8))
-; (+ 50 50)
+
+
+; (define my_plus (lambda (x y) (+ x y)))
+; (my_plus 1 1)
+
+(define my_plus2 
+    (lambda (x y) 
+        (lambda (z) (+ x y z))))
+((my_plus2 1 2) 3)

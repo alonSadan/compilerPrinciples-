@@ -201,7 +201,7 @@ let rec make_generate  constant_table fvars_table e=
   | BoxGet'(var) -> make_gen_box_get constant_table fvars_table var
   | BoxSet'(var,value) -> make_gen_box_set  constant_table fvars_table var value
   | LambdaSimple'(arglist,body) -> make_gen_lambda  constant_table fvars_table arglist body
-  (* | Applic'(proc,args) -> make_gen_applic  constant_table fvars_table proc args *)
+  | Applic'(proc,args) -> make_gen_applic  constant_table fvars_table proc args
   | _ -> ""
 (* raise (ALON_ERR1 e) *)
 and make_gen_const constant_table c = "mov rax, const_tbl+" ^ (get_str_pos c constant_table) ^ "\n"
@@ -283,13 +283,11 @@ and make_gen_lambda  constant_table fvars_table arglist body =
   
   (* calc |ENV| and store it in rcx *)
   let get_env_size =
-    "mov rcx, 0
-    mov rbx, LEXICAL_ENV 
+    "mov rbx, LEXICAL_ENV 
     mov rcx, 0 
     l_env_counter"^ind^":
-    \t cmp qword [rbx], SOB_NIL_ADDRESS 
-    \t je l_env_counter_end"^ind^" 
-    \t add rbx, WORD_SIZE 
+    \t cmp qword [rbx + WORD_SIZE*rcx], SOB_NIL_ADDRESS 
+    \t je l_env_counter_end"^ind^"   
     \t inc rcx 
     \t jmp l_env_counter"^ind^" 
     l_env_counter_end"^ind^":
@@ -300,18 +298,22 @@ and make_gen_lambda  constant_table fvars_table arglist body =
   let allocate_ext_env = 
     "mov rbx,LEXICAL_ENV
     inc rcx 
-    MALLOC rdx, rcx 
-    " in
+    mov rax,rcx
+    shl rax,3
+    MALLOC rdx, rax 
+    dec rcx\n" in
 
   (* using loop opertator that works with rcx*)
   let copy_pointers = 
-    "dec rcx \n
-    lcopy"^ind^":
+    
+    "lcopy"^ind^":
     \t mov rax, qword[rbx + WORD_SIZE*rcx] 
-    \t mov qword [rdx + WORD_SIZE*rcx], rax 
-    \t loop lcopy"^ind^" \n
-    mov rax,qword[rbx] 
-    mov qword[rdx],rax 
+    \t mov qword [rdx + WORD_SIZE*rcx + WORD_SIZE], rax
+    \t cmp rcx,0
+    \t jz l_end_copy"^ind^"
+    \t dec rcx 
+    \t jmp lcopy"^ind^" \n
+    l_end_copy"^ind^":\n
     " in 
 
   let num_of_args = "mov rbx, ARGS_NUMBER ;; get number of args \n" in
@@ -325,12 +327,12 @@ and make_gen_lambda  constant_table fvars_table arglist body =
     ^ (alloc_minors (ind + 1)) in
 
   let set_lex_env = 
-    "mov qword [rdx], rcx ;; load minors \n
+    "mov qword [rdx], rcx ;; load minors to extenv[0] \n
     mov LEXICAL_ENV,rdx
     " in
   let make_ext_env = 
     alloc_first_env^get_env_size^allocate_ext_env^copy_pointers^
-    num_of_args^minors_size^minors^set_lex_env^(alloc_minors 0)^set_lex_env in
+    num_of_args^minors_size^minors^(alloc_minors 0)^set_lex_env in
 
   let eps_body = make_generate constant_table fvars_table body in
   let code =
@@ -339,11 +341,13 @@ and make_gen_lambda  constant_table fvars_table arglist body =
     mov rbp , rsp \n
     ;; LAMBDA_BODY: \n"
     ^ eps_body ^ "\n
+    ;; LAMBDA_BODY_END \n
     leave
     ret \n
     Lcont"^ind^": \n" in
 
   ";; Lambda_Simple: \n
+  Lambda_Simple"^ind^":\n
   "^make_ext_env^" \n
   jmp Lcont"^ind^ "\n"
   ^ code ^
@@ -352,7 +356,7 @@ and make_gen_lambda  constant_table fvars_table arglist body =
 
 and make_gen_applic  constant_table fvars_table proc args =
   (* ToDo: maybe also add magic number to stack  *)
-  let eps_lst = List.map (make_generate  constant_table fvars_table) args in
+  let eps_lst = List.map (make_generate  constant_table fvars_table) (List.rev args) in
   let eps_proc = make_generate  constant_table fvars_table proc in
   let ans_args = String.concat "\n" (List.map (fun e-> e ^ "push rax \n") eps_lst) in
   ";;APPLIC: \n" ^
