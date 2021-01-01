@@ -44,7 +44,7 @@ let primitive_names =
   ["boolean?"; "flonum?"; "rational?"; "pair?"; "null?"; "char?"; "string?";                                                                                                                              "procedure?"; "symbol?"; "string-length"; "string-ref"; "string-set!";
    "make-string"; "symbol->string"; "char->integer"; "integer->char";
    "exact->inexact"; "eq?"; "+"; "*"; "/"; "="; "<"; "numerator"; "denominator";
-   "gcd";"car";"cdr";"cons";"set-car!";"set-cdr!"];;
+   "gcd";"car";"cdr";"cons";"set-car!";"set-cdr!";"apply"];;
 
 
 let rec make_set = function
@@ -202,6 +202,7 @@ let rec make_generate  constant_table fvars_table e=
   | BoxSet'(var,value) -> make_gen_box_set  constant_table fvars_table var value
   | LambdaSimple'(arglist,body) -> make_gen_lambda  constant_table fvars_table arglist body
   | Applic'(proc,args) -> make_gen_applic  constant_table fvars_table proc args
+  | ApplicTP'(proc,args) -> make_gen_applicTP  constant_table fvars_table proc args
   | _ -> ""
 (* raise (ALON_ERR1 e) *)
 and make_gen_const constant_table c = "mov rax, const_tbl+" ^ (get_str_pos c constant_table) ^ "\n"
@@ -380,15 +381,36 @@ and make_gen_applic  constant_table fvars_table proc args =
   ";;APPLIC_args: \n" ^
   ans_args ^ "push "^string_of_int (List.length args) ^" \n"
   ^ ";; APPLIC_proc: \n"
-  ^ eps_proc ^
+  ^ eps_proc ^ 
   "CLOSURE_ENV r8, rax ;;store closure env in r8  (pointer register)
   CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
   push r8
   call r9
   add rsp, 8 ;; pop env
-  pop rbx ;; pop arg count
+  pop rbx ;; pop arg count   
   shl rbx, 3 ;; rbx = rbx * 8
   add rsp, rbx ;; pop args \n"
+
+
+and make_gen_applicTP  constant_table fvars_table proc args =
+  (* ToDo: maybe also add magic number to stack  *)
+  let eps_lst = List.map (make_generate  constant_table fvars_table) (List.rev args) in
+  let eps_proc = make_generate  constant_table fvars_table proc in
+  let ans_args = String.concat "\n" (List.map (fun e-> e ^ "push rax \n") eps_lst) in
+  let fix_stack = "SHIFT_FRAME  "^string_of_int ((List.length args)+4)^"" in
+  ";;APPLIC: \n" ^
+  ";;APPLIC_args: \n" ^
+  ans_args ^ "push "^string_of_int (List.length args) ^" \n"
+  ^ ";; APPLIC_proc: \n"
+  ^ eps_proc ^ 
+  "CLOSURE_ENV r8, rax ;;store closure env in r8  (pointer register)
+  CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
+  push r8
+  push qword [rbp+8] ;; old re addr
+  "^fix_stack^"
+  jmp r9
+
+  "
 ;;
 
 

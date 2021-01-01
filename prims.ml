@@ -222,7 +222,95 @@ module Prims : PRIMS = struct
         "mov qword[rsi+TYPE_SIZE+WORD_SIZE], rdi  ;; give car a new value
         mov rax, SOB_VOID_ADDRESS  ;; return void ",make_binary,"set_cdr";
 
-    (* string ops *)
+        "mov rax,ARGS_NUMBER
+        dec rax ;; to point to the begining of opt args list (s)
+        mov rbx,qword[rbp + WORD_SIZE*(4 + rax)] ;; add old rbp, env etc...
+        mov rcx,0 
+
+        .s_length:
+        \t cmp rbx,SOB_NIL_ADDRESS
+        \t je .end_s_length
+        \t inc rcx
+        \t CDR rbx,rbx
+        \t jmp .s_length
+
+        .end_s_length:
+        
+        mov rax,rbp
+        mov rdx,rcx
+        ;;sub rdx,4 ;; point rax above old rbp,ret,env,args_number
+        shl rdx,3
+        sub rax,rdx ;; decremet rax size list length
+        
+        mov rdx,0
+        mov r8,ARGS_NUMBER
+        dec r8  ;; do not include s
+        mov r9,r8 ;; save args number for later
+        sub r8,2 ;; for stopping in the correct index of the loop and removing f from objects to copy
+
+        ;; mov all stack down (offset |s|) without s
+        .my_loop:  ;; mov fram bottom up
+        \t mov rbx,[rbp +rdx*WORD_SIZE +4*WORD_SIZE + WORD_SIZE] ;; get argument in index i 
+        \t mov qword[rax+rdx*WORD_SIZE], rbx
+        \t cmp rdx,r8
+        \t je .my_loop_end
+        \t inc rdx
+        \t jmp .my_loop
+
+        .my_loop_end:
+        cmp rcx,0
+        je .call_proc
+
+        ;;point rax to the place we want to store s
+        shl rdx,3
+        add rdx,WORD_SIZE ;;resotore one dec to receive correct offset
+        push rax ;; backup rax for later(we want it to point to start of the shifted stack)
+        add rax,rdx  ;;get list 
+        
+        mov rbx,ARGS_NUMBER
+        dec rbx ;; to point to the begining of opt args list (s)
+        mov rbx,qword[rbp + WORD_SIZE*(4 + rbx)] ;; add old rbp, env etc...
+        mov rdx,0
+
+        ;; copy list s to new frame
+        push rcx
+        .my_loop2:
+        \t CAR r8,rbx  
+        \t mov qword[rax+rdx*WORD_SIZE] ,r8 ;; get element  from list
+        \t inc rdx
+        \t CDR rbx,rbx
+        \t loop .my_loop2 ;; rcx is list length
+        
+        .call_proc:
+        ;; mov rbp to new place
+        pop rcx
+        mov rbx,qword[rbp+WORD_SIZE] ;;get closure from stack
+        pop rax ;; restore rax to point to were we copy stuff
+        mov rdx,rax
+        mov rax,PVAR(0)
+        mov rbp,rdx
+        mov rsp,rbp
+        add rcx,r9  ;;r9 hold args number, now rcx holds |n + s.length|
+        push rcx ;; push  n+m to stack
+        CLOSURE_ENV r8, rax ;;store closure env in r8  (pointer register)
+        CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
+        push r8
+        call r9
+
+        ;; assume rbp point to x_0
+        ;; set rax with closure (f)
+        ;; push f_lexical_env
+        ;; call f 
+        ;; fix stack to point to n+m
+        ;; end
+        
+        ",make_routine,"apply";
+   
+   
+   
+   
+   
+        (* string ops *)
         "STRING_LENGTH rsi, rsi
          MAKE_RATIONAL(rax, rsi, 1)", make_unary, "string_length";
 

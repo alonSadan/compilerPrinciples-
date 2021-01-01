@@ -61,7 +61,7 @@
 ; Supports using with %1 = %2
 %macro MALLOC 2
 	add qword [malloc_pointer], %2
-	push %2
+	push %2 
 	mov %1, qword [malloc_pointer]
 	sub %1, [rsp]
 	add rsp, 8
@@ -168,6 +168,22 @@
 %define MAKE_BOOL(val) MAKE_LITERAL T_BOOL, db val
 
 ; %define MAKE_FVAR_LABEL(index) index: resq 1
+
+%macro SHIFT_FRAME 1 ;%1 = size of frame(constant)
+	push rax
+	mov rax, PARAM_COUNT
+	add rax, 5 ;;maybe change it to 5 after magic
+%assign i 1
+%rep %1
+	dec rax
+	push [rbp-WORD_SIZE*%i]
+	pop [rbp+WORD_SIZE*rax]
+%assign i i+1
+%endrep
+	pop rax
+%endmacro
+
+
 
 ;;; Macros and routines for printing Scheme OBjects to STDOUT
 %define CHAR_NUL 0
