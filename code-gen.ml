@@ -44,7 +44,7 @@ let primitive_names =
   ["boolean?"; "flonum?"; "rational?"; "pair?"; "null?"; "char?"; "string?";                                                                                                                              "procedure?"; "symbol?"; "string-length"; "string-ref"; "string-set!";
    "make-string"; "symbol->string"; "char->integer"; "integer->char";
    "exact->inexact"; "eq?"; "+"; "*"; "/"; "="; "<"; "numerator"; "denominator";
-   "gcd";"car";"cdr";"set-car!";"set-cdr!"];;
+   "gcd";"car";"cdr";"cons";"set-car!";"set-cdr!"];;
 
 
 let rec make_set = function
