@@ -270,7 +270,7 @@ and make_gen_box_set  constant_table fvars_table var value =
 and make_gen_lambda  constant_table fvars_table arglist body =
   (*only for empty lex : make closure without extend
     ToDo: maybe also give lcode,lbody another ind (they share same instance with the IF labels)*)
-    (* LEXICAL_ENV = [rbp+16] *)
+  (* LEXICAL_ENV = [rbp+16] *)
 
   let ind = (Gensym.next "") in
   (* LEXICAL_ENV = null => { void* LEXICAL_ENV = malloc(size_of word), *LEXICAL = null }   *)
@@ -295,7 +295,7 @@ and make_gen_lambda  constant_table fvars_table arglist body =
     " in
 
   (* 1. alloc ext_env and store and store it in rdx
-  2. store current env in rbx *)
+     2. store current env in rbx *)
   let allocate_ext_env =
     ";; get old env \n
     mov rbx,LEXICAL_ENV
@@ -333,7 +333,7 @@ and make_gen_lambda  constant_table fvars_table arglist body =
   let minors  = "MALLOC rcx, rbx ;; allocate minors\n" in
   let alloc_minors =
     (* if ind = (List.length arglist) then ""
-    else  *)
+       else  *)
     "dec rbx
     copy_minors"^ind^":\n
     \t mov rax,PVAR(rbx) \n
@@ -381,13 +381,13 @@ and make_gen_applic  constant_table fvars_table proc args =
   ";;APPLIC_args: \n" ^
   ans_args ^ "push "^string_of_int (List.length args) ^" \n"
   ^ ";; APPLIC_proc: \n"
-  ^ eps_proc ^ 
+  ^ eps_proc ^
   "CLOSURE_ENV r8, rax ;;store closure env in r8  (pointer register)
   CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
   push r8
   call r9
   add rsp, 8 ;; pop env
-  pop rbx ;; pop arg count   
+  pop rbx ;; pop arg count
   shl rbx, 3 ;; rbx = rbx * 8
   add rsp, rbx ;; pop args \n"
 
@@ -397,20 +397,19 @@ and make_gen_applicTP  constant_table fvars_table proc args =
   let eps_lst = List.map (make_generate  constant_table fvars_table) (List.rev args) in
   let eps_proc = make_generate  constant_table fvars_table proc in
   let ans_args = String.concat "\n" (List.map (fun e-> e ^ "push rax \n") eps_lst) in
-  let fix_stack = "SHIFT_FRAME  "^string_of_int ((List.length args)+4)^"" in
+  let fix_stack = "SHIFT_FRAME "^string_of_int (((List.length args)+3))  in
   ";;APPLIC: \n" ^
   ";;APPLIC_args: \n" ^
   ans_args ^ "push "^string_of_int (List.length args) ^" \n"
   ^ ";; APPLIC_proc: \n"
-  ^ eps_proc ^ 
+  ^ eps_proc ^
   "CLOSURE_ENV r8, rax ;;store closure env in r8  (pointer register)
   CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
   push r8
   push qword [rbp+8] ;; old re addr
-  "^fix_stack^"
-  jmp r9
 
-  "
+  "^fix_stack^
+  "\njmp r9"
 ;;
 
 

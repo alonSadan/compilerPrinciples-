@@ -61,7 +61,7 @@
 ; Supports using with %1 = %2
 %macro MALLOC 2
 	add qword [malloc_pointer], %2
-	push %2 
+	push %2
 	mov %1, qword [malloc_pointer]
 	sub %1, [rsp]
 	add rsp, 8
@@ -121,7 +121,7 @@
 %endmacro
 
 ; %macro MAKE_LINK 3
-;         MALLOC %1, WORD_SIZE*2    
+;         MALLOC %1, WORD_SIZE*2
 ;         mov qword [%1], %2
 ;         mov qword [%1+WORD_SIZE], %3
 ; %endmacro
@@ -167,24 +167,35 @@
 %define MAKE_VOID db T_VOID
 %define MAKE_BOOL(val) MAKE_LITERAL T_BOOL, db val
 
-; %define MAKE_FVAR_LABEL(index) index: resq 1
+; %macro SHIFT_FRAME 1 ;%1 = size of frame(constant)
+; 	push rax
+; 	mov rax, ARGS_NUMBER
+; 	add rax, 4 ;;maybe change it to 5 after magic
+; %assign i 1
+; %rep %1
+; 	dec rax
+; 	push qword [rbp-WORD_SIZE*i]
+; 	pop qword [rbp+WORD_SIZE*rax]
+; %assign i i+1
+; %endrep
+; 	pop rax
+; %endmacro
 
-%macro SHIFT_FRAME 1 ;%1 = size of frame(constant)
-	push rax
-	mov rax, PARAM_COUNT
-	add rax, 5 ;;maybe change it to 5 after magic
-%assign i 1
-%rep %1
-	dec rax
-	push [rbp-WORD_SIZE*%i]
-	pop [rbp+WORD_SIZE*rax]
-%assign i i+1
-%endrep
-	pop rax
+
+
+%macro SHIFT_FRAME 1 ;;  g->f->h
+	mov rdx, qword[rbp] ;; load rdx with old rbp
+	mov rcx, rbp    ;; load rcx with current rbp
+	mov rax, [rbp]	;;  backup old rbp, beacause it will be the rbp eventually
+	mov rbp, rax
+	%rep %1
+		sub rdx, WORD_SIZE   ;; dest
+		sub rcx , WORD_SIZE   ;; source
+		mov qword[rdx], rcx		;; put Word from source in dest
+
+	%endrep
+
 %endmacro
-
-
-
 ;;; Macros and routines for printing Scheme OBjects to STDOUT
 %define CHAR_NUL 0
 %define CHAR_TAB 9
