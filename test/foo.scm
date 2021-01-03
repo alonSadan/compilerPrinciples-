@@ -1,3 +1,4 @@
+; #t
 ; #f
 
 ; '(1 2 3 4 5 6)
@@ -28,10 +29,10 @@
 ; (define x (lambda () (lambda() (lambda() #t))))
 ; (((x)))
 
-(define fact
-        (lambda (n)
-          (if (= n 0) 1 (* n (fact (+ n -1))))))
-(fact 5)
+; (define fact
+;         (lambda (n)
+;           (if (= n 0) 1 (* n (fact (+ n -1))))))
+; (fact 5)
 
 ; ; (define foo (lambda (x) (lambda (y) (lambda (z) (+ z x)))))
 ; ; (((foo 4) 5) 6)
@@ -39,5 +40,4 @@
 ; (define x '(1 2))
 ; (set-cdr! x 5)
 ; x
-
-; (apply + 1 2 3  '(5 6 7))
+(apply + 1 '(4 5))

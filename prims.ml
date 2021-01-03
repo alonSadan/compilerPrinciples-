@@ -222,9 +222,72 @@ module Prims : PRIMS = struct
         "mov qword[rsi+TYPE_SIZE+WORD_SIZE], rdi  ;; give car a new value
         mov rax, SOB_VOID_ADDRESS  ;; return void ",make_binary,"set_cdr";
 
+        ";;ToDo: add thie line if magic is needed push -1 ;magic
+        .get_s_length:
+        mov r8,ARGS_NUMBER
+        dec r8
+        mov rdx,PVAR(r8)
+        PROPER_LIST_LENGTH rcx,rdx
+        mov r15,rcx
+        cmp rcx,0 
+        je .end_insert_lst
+
+        .set_rsp_to_insert_lst:
+        shl rcx,3
+        sub rsp,rcx ;point rcx to place where we store list
+        shr rcx,3
+        mov r9,rsp
+
+        .insert_lst:
+        mov rdx,PVAR(r8)
+        LOAD_PROPER_LST r9, rdx
+
+        .end_insert_lst:
+        mov rcx,ARGS_NUMBER  
+        cmp rcx,2
+        je .end_insert_params 
+        sub rcx,2 ;; args number without f and s
+        add r15,rcx
+
+        ;;run fron x_n-1 until x_1 (not inclide f and s)
+        .insert_params:
+        push PVAR(rcx)
+        loop .insert_params
+
+        .end_insert_params:
+        push r15 ;; number of args pushed to fixed stack
+        mov rax,PVAR(0)
+        CLOSURE_ENV r8, rax ;;store closure env in r8  (pointer register)
+        CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
+        push r8 ;; lexical env
+        push qword[rbp+8*1] ; old ret addr
+        mov rcx,r15
+        mov rdx,ARGS_NUMBER
+        add r15,3 ;; ToDo: change to 4 or 5 if magic is needed
+        .shiftFrame:
+        SHIFT_FRAME_DYNAMIC r15
+        .stepBeforeProc:
+        mov rsp,rbp
+        sub rcx,rdx ;; rcx = m-n
+        dec rcx ;;we didnt push rbp-in f in fixed stacked from prev stack, so we need to fix it
+        shl rcx,3
+        sub rsp,rcx
+        mov rbp,qword [rbp] ;;mov point to prev rbp
+        jmp r9
+        .afterJump:
+        ;;should not get here
+        mov rax,rax
+        
+
+        ",make_routine,"my_apply";
+
         "mov rax,ARGS_NUMBER
+        mov r9,rax
+        sub r9,2
         dec rax ;; to point to the begining of opt args list (s)
         mov rbx,qword[rbp + WORD_SIZE*(4 + rax)] ;; add old rbp, env etc...
+        mov r14,qword[rbp+8]
+        mov r15,rbx
         mov rcx,0 
 
         .s_length:
@@ -245,70 +308,67 @@ module Prims : PRIMS = struct
         mov rdx,0
         mov r8,ARGS_NUMBER
         dec r8  ;; do not include s
-        mov r9,r8 ;; save args number for later
-        sub r8,2 ;; for stopping in the correct index of the loop and removing f from objects to copy
+        add r8,4 ;;include old rbp,ret,apply_env,number
 
+        dec r8 ;; loop for 0 to n-1
         ;; mov all stack down (offset |s|) without s
-        .my_loop:  ;; mov fram bottom up
-        \t mov rbx,[rbp +rdx*WORD_SIZE +4*WORD_SIZE + WORD_SIZE] ;; get argument in index i 
+        .insert_obj_list:  ;; mov fram bottom up
+        \t mov rbx,[rbp+rdx*WORD_SIZE] ;; get argument in index i 
         \t mov qword[rax+rdx*WORD_SIZE], rbx
         \t cmp rdx,r8
-        \t je .my_loop_end
+        \t je .insert_obj_list_end
         \t inc rdx
-        \t jmp .my_loop
+        \t jmp .insert_obj_list
 
-        .my_loop_end:
+        .insert_obj_list_end:
+        push rax
         cmp rcx,0
         je .call_proc
 
         ;;point rax to the place we want to store s
         shl rdx,3
-        add rdx,WORD_SIZE ;;resotore one dec to receive correct offset
-        push rax ;; backup rax for later(we want it to point to start of the shifted stack)
+        add rdx,WORD_SIZE ;;restore one dec to receive correct offset
+        ;;push rax ;; backup rax for later(we want it to point to start of the shifted stack)
         add rax,rdx  ;;get list 
         
-        mov rbx,ARGS_NUMBER
-        dec rbx ;; to point to the begining of opt args list (s)
-        mov rbx,qword[rbp + WORD_SIZE*(4 + rbx)] ;; add old rbp, env etc...
+        mov rbx,r15
         mov rdx,0
 
         ;; copy list s to new frame
-        push rcx
-        .my_loop2:
-        \t CAR r8,rbx  
+        ;; push rcx
+        .insert_list:
+        \t cmp rbx,SOB_NIL_ADDRESS
+        \t je .call_proc
+        \t CAR r8,rbx
         \t mov qword[rax+rdx*WORD_SIZE] ,r8 ;; get element  from list
         \t inc rdx
         \t CDR rbx,rbx
-        \t loop .my_loop2 ;; rcx is list length
+        \t jmp .insert_list ;; rcx is list length
         
         .call_proc:
-        ;; mov rbp to new place
-        pop rcx
-        mov rbx,qword[rbp+WORD_SIZE] ;;get closure from stack
-        pop rax ;; restore rax to point to were we copy stuff
-        mov rdx,rax
-        mov rax,PVAR(0)
-        mov rbp,rdx
-        mov rsp,rbp
+        pop rax
+        mov rax,qword[rax+4*WORD_SIZE] ;; load clousre 
         add rcx,r9  ;;r9 hold args number, now rcx holds |n + s.length|
-        push rcx ;; push  n+m to stack
-        CLOSURE_ENV r8, rax ;;store closure env in r8  (pointer register)
-        CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
-        push r8
-        call r9
 
-        ;; assume rbp point to x_0
-        ;; set rax with closure (f)
-        ;; push f_lexical_env
-        ;; call f 
-        ;; fix stack to point to n+m
-        ;; end
+        mov qword[rax+3*WORD_SIZE],rcx ;; push  n+m to stack
+        ;; move the 4 words one line up:
+        mov rbx,rax
+        mov rdx,rax
+        add rdx,WORD_SIZE
+        MEMMOVE rdx, rbx, 4
+        mov rsp,rdx
+        mov rbp,rsp
+        
+        CLOSURE_ENV rbx, rax ;;store closure env in r8  (pointer register)
+        CLOSURE_CODE rdx, rax ;;store closure code/body in r9 (pointer register)
+        push rbx
+        call rdx
+        
+        .after_proc:
+        add rsp,8
+        ;;mov qword[rbp+3*8],r9
         
         ",make_routine,"apply";
-   
-   
-   
-   
    
         (* string ops *)
         "STRING_LENGTH rsi, rsi

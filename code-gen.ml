@@ -46,6 +46,7 @@ let primitive_names =
    "exact->inexact"; "eq?"; "+"; "*"; "/"; "="; "<"; "numerator"; "denominator";
    "gcd";"car";"cdr";"cons";"set-car!";"set-cdr!";"apply"];;
 
+let magic = "push -1 ;;magic \n"
 
 let rec make_set = function
   | [] -> []
@@ -388,6 +389,7 @@ and make_gen_applic  constant_table fvars_table proc args =
   call r9
   add rsp, 8 ;; pop env
   pop rbx ;; pop arg count
+  ;;inc rbx ;; also pop magic
   shl rbx, 3 ;; rbx = rbx * 8
   add rsp, rbx ;; pop args \n"
 
