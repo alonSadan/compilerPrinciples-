@@ -183,17 +183,20 @@
 
 
 
-%macro SHIFT_FRAME 1 ;;  g->f->h
+%macro SHIFT_FRAME_TP 1 ;;  g->f->h
 	mov rdx, qword[rbp] ;; load rdx with old rbp
 	mov rcx, rbp    ;; load rcx with current rbp
-	mov rax, [rbp]	;;  backup old rbp, beacause it will be the rbp eventually
-	mov rbp, rax
+	mov rax, qword[rbp]	;;  backup old rbp, beacause it will be the rbp eventually
+	mov rbp, rax ;; restore old rbp
 	%rep %1
 		sub rdx, WORD_SIZE   ;; dest
 		sub rcx , WORD_SIZE   ;; source
-		mov qword[rdx], rcx		;; put Word from source in dest
+		mov rbx, qword[rcx]		;;
+		mov qword[rdx], rbx		;; put Word from source in dest
 
 	%endrep
+	mov rsp, rdx  ;; give stack pointer updated address after frame shift
+
 
 %endmacro
 ;;; Macros and routines for printing Scheme OBjects to STDOUT
