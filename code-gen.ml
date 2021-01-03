@@ -46,6 +46,7 @@ let primitive_names =
    "exact->inexact"; "eq?"; "+"; "*"; "/"; "="; "<"; "numerator"; "denominator";
    "gcd";"car";"cdr";"cons";"set-car!";"set-cdr!";"apply"];;
 
+let magic = "push -1 ;;magic \n"
 
 let rec make_set = function
   | [] -> []
@@ -387,7 +388,8 @@ and make_gen_applic  constant_table fvars_table proc args =
   push r8
   call r9
   add rsp, 8 ;; pop env
-  pop rbx ;; pop arg count   
+  pop rbx ;; pop arg count
+  ;;inc rbx ;; also pop magic  
   shl rbx, 3 ;; rbx = rbx * 8
   add rsp, rbx ;; pop args \n"
 
@@ -397,7 +399,7 @@ and make_gen_applicTP  constant_table fvars_table proc args =
   let eps_lst = List.map (make_generate  constant_table fvars_table) (List.rev args) in
   let eps_proc = make_generate  constant_table fvars_table proc in
   let ans_args = String.concat "\n" (List.map (fun e-> e ^ "push rax \n") eps_lst) in
-  let fix_stack = "SHIFT_FRAME  "^string_of_int ((List.length args)+4)^"" in
+  let fix_stack = Printf.sprintf "SHIFT_FRAME %d" ((List.length args)+5) in
   ";;APPLIC: \n" ^
   ";;APPLIC_args: \n" ^
   ans_args ^ "push "^string_of_int (List.length args) ^" \n"

@@ -171,17 +171,85 @@
 
 %macro SHIFT_FRAME 1 ;%1 = size of frame(constant)
 	push rax
-	mov rax, PARAM_COUNT
-	add rax, 5 ;;maybe change it to 5 after magic
+	mov rax, ARGS_NUMBER
+	add rax, 5 
 %assign i 1
 %rep %1
 	dec rax
-	push [rbp-WORD_SIZE*%i]
-	pop [rbp+WORD_SIZE*rax]
+	push qword [rbp-WORD_SIZE*i]
+	pop qword [rbp+WORD_SIZE*rax]
 %assign i i+1
 %endrep
 	pop rax
 %endmacro
+
+%macro SHIFT_FRAME_DYNAMIC 1 
+	push rax
+	push rbx
+	push rcx
+	mov rax, ARGS_NUMBER
+	add rax, 4 ;ToDo: change to 5 if magic is needed 
+	mov rbx,0
+	mov rcx,%1
+%%shift_frame_loop:
+	dec rax
+	inc rbx
+	neg rbx
+	push qword [rbp+WORD_SIZE*rbx]
+	neg rbx
+	pop qword [rbp+WORD_SIZE*rax]
+loop %%shift_frame_loop
+	pop rcx
+	pop rbx
+	pop rax
+%endmacro
+
+
+
+
+; %1: ret register %2->lst
+%macro PROPER_LIST_LENGTH 2
+	mov %1,0
+	%%lst_length_loop:
+	cmp %2,SOB_NIL_ADDRESS
+    je %%end_lst_length_loop
+	inc %1
+    CDR %2,%2
+    jmp %%lst_length_loop
+	%%end_lst_length_loop:
+%endmacro
+
+; %1 dst %2start of pair
+%macro LOAD_PROPER_LST 2 
+	push rax
+	%%lst_loop:
+	cmp %2,SOB_NIL_ADDRESS
+    je %%end_lst_loop
+	CAR rax, %2
+	mov qword [%1], rax
+	CDR %2, %2 
+	add %1,WORD_SIZE
+    jmp %%lst_loop
+	%%end_lst_loop:
+	pop rax
+%endmacro
+
+; ; dst,src,number
+%macro MEMMOVE 3
+	push rcx
+	mov rcx,%3
+	cmp rcx,0
+	%%memmove_loop:
+	jz %%memmove_end_loop
+	dec rcx
+	push qword [%2+WORD_SIZE*rcx]
+	pop qword [%1+WORD_SIZE*rcx]
+	jmp %%memmove_loop
+	%%memmove_end_loop:
+	pop rcx
+%endmacro
+
+
 
 
 
