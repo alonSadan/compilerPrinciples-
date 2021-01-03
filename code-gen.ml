@@ -399,7 +399,8 @@ and make_gen_applicTP  constant_table fvars_table proc args =
   let eps_lst = List.map (make_generate  constant_table fvars_table) (List.rev args) in
   let eps_proc = make_generate  constant_table fvars_table proc in
   let ans_args = String.concat "\n" (List.map (fun e-> e ^ "push rax \n") eps_lst) in
-  let fix_stack = "SHIFT_FRAME_TP "^string_of_int (((List.length args)+3))  in
+  (* let fix_stack = "SHIFT_FRAME_TP "^string_of_int (((List.length args)+3))  in *)
+  let fix_stack = "SHIFT_FRAME_TP\n"  in
   ";;APPLIC: \n" ^
   ";;APPLIC_args: \n" ^
   ans_args ^ "push "^string_of_int (List.length args) ^" \n"
@@ -409,7 +410,6 @@ and make_gen_applicTP  constant_table fvars_table proc args =
   CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
   push r8
   push qword [rbp+8] ;; old re addr
-
   "^fix_stack^
   "\njmp r9"
 ;;

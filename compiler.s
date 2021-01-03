@@ -264,19 +264,44 @@ loop %%shift_frame_loop
 
 
 
-%macro SHIFT_FRAME_TP 1 ;;  g->f->h
+; %macro SHIFT_FRAME_TP 1 ;;  g->f->h
+; 	debug: mov rdx, qword[rbp] ;; load rdx with old rbp
+; 	mov rcx, rbp    ;; load rcx with current rbp
+; 	mov rax, qword[rbp]	;;  backup old rbp, beacause it will be the rbp eventually
+; 	mov rbp, rax ;; restore old rbp
+; 	sub rdx, WORD_SIZE   ;; dest
+; 	sub rcx , WORD_SIZE   ;; source
+; 	%rep %1
+; 		mov rbx, qword[rcx]		;;
+; 		mov qword[rdx], rbx		;; put Word from source in dest
+; 		sub rdx, WORD_SIZE   ;; dest
+; 		sub rcx , WORD_SIZE   ;; source
+; 	%endrep
+
+; 	mov rsp, rdx  ;; give stack pointer updated address after frame shift
+
+%macro SHIFT_FRAME_TP 0;;  g->f->h
 	mov rdx, qword[rbp] ;; load rdx with old rbp
 	mov rcx, rbp    ;; load rcx with current rbp
-	mov rax, qword[rbp]	;;  backup old rbp, beacause it will be the rbp eventually
-	mov rbp, rax ;; restore old rbp
-	%rep %1
+	mov rbp, qword[rbp] ;; restore old rbp
+	sub rdx, WORD_SIZE   ;; dest
+	sub rcx , WORD_SIZE   ;; source
+
+	%%loopTp:
+		mov rbx, qword[rcx]		;;
+		debug:mov qword[rdx], rbx		;; put Word from source in dest
+		 cmp rcx, rsp
+		;cmp rcx, qword[rsp]
+		je %%loopTPend
 		sub rdx, WORD_SIZE   ;; dest
 		sub rcx , WORD_SIZE   ;; source
-		mov rbx, qword[rcx]		;;
-		mov qword[rdx], rbx		;; put Word from source in dest
+		jmp %%loopTp
+	%%loopTPend:
 
-	%endrep
 	mov rsp, rdx  ;; give stack pointer updated address after frame shift
+
+
+
 
 
 %endmacro

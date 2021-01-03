@@ -37,7 +37,16 @@
 ; ; (define foo (lambda (x) (lambda (y) (lambda (z) (+ z x)))))
 ; ; (((foo 4) 5) 6)
 
-; (define x '(1 2))
-; (set-cdr! x 5)
-; x
-(apply + 1 '(4 5))
+; ; (define x '(1 2))
+; ; (set-cdr! x 5)
+; ; x
+; (apply + 1 '(4 5))
+
+; (if (lt 5 5) 5 1)
+
+(define fib
+ (lambda (n)
+  (if (< n 2)
+  1
+  (+ (fib (+ n -1)) 1))))
+(fib 5)
