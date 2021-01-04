@@ -184,7 +184,7 @@
 %macro SHIFT_FRAME 1 ;%1 = size of frame(constant)
 	push rax
 	mov rax, ARGS_NUMBER
-	add rax, 5
+	add rax, 4 ;ToDo: change to 5 if magic is needed
 %assign i 1
 %rep %1
 	dec rax
@@ -215,8 +215,6 @@ loop %%shift_frame_loop
 	pop rbx
 	pop rax
 %endmacro
-
-
 
 
 ; %1: ret register %2->lst
@@ -299,12 +297,10 @@ loop %%shift_frame_loop
 	%%loopTPend:
 
 	mov rsp, rdx  ;; give stack pointer updated address after frame shift
-
-
-
-
-
 %endmacro
+
+
+
 ;;; Macros and routines for printing Scheme OBjects to STDOUT
 %define CHAR_NUL 0
 %define CHAR_TAB 9

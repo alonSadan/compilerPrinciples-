@@ -399,19 +399,31 @@ and make_gen_applicTP  constant_table fvars_table proc args =
   let eps_lst = List.map (make_generate  constant_table fvars_table) (List.rev args) in
   let eps_proc = make_generate  constant_table fvars_table proc in
   let ans_args = String.concat "\n" (List.map (fun e-> e ^ "push rax \n") eps_lst) in
-  (* let fix_stack = "SHIFT_FRAME_TP "^string_of_int (((List.length args)+3))  in *)
-  let fix_stack = "SHIFT_FRAME_TP\n"  in
-  ";;APPLIC: \n" ^
-  ";;APPLIC_args: \n" ^
+  (* 3 because we not push old rbp and magic isnt implemented yet *)
+  let m = string_of_int ((List.length args)+3) in
+  let fix_stack = "SHIFT_FRAME "^m  in
+  ";;APPLICTP: \n" ^
+  ";;APPLICTP_args: ;;m+3 = "^m^"\n" ^
   ans_args ^ "push "^string_of_int (List.length args) ^" \n"
-  ^ ";; APPLIC_proc: \n"
+  ^ ";; APPLICTP_proc: \n"
   ^ eps_proc ^
   "CLOSURE_ENV r8, rax ;;store closure env in r8  (pointer register)
   CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
   push r8
-  push qword [rbp+8] ;; old re addr
-  "^fix_stack^
-  "\njmp r9"
+  push qword [rbp+8] ;; old ret addr
+  mov r13,qword[rbp]
+  "^fix_stack^"\n
+  ;;fix rsp,rbp
+  mov rdx,ARGS_NUMBER
+  add rdx,4 ;ToDo: change to 5 if magic is needed
+  mov rdx, "^m^"
+  dec rcx ;;we didnt push rbp-in f in fixed stacked from prev stack, so we need to fix it
+  shl rcx,3
+  mov rsp,rbp 
+  sub rsp,rcx
+  mov rbp,r13
+  ;; start function body
+  jmp r9"
 ;;
 
 

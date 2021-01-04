@@ -264,6 +264,7 @@ module Prims : PRIMS = struct
         mov rcx,r15
         mov rdx,ARGS_NUMBER
         add r15,3 ;; ToDo: change to 4 or 5 if magic is needed
+        mov r13, qword[rbp] ; prev rbp
         .shiftFrame:
         SHIFT_FRAME_DYNAMIC r15
         .stepBeforeProc:
@@ -272,7 +273,7 @@ module Prims : PRIMS = struct
         dec rcx ;;we didnt push rbp-in f in fixed stacked from prev stack, so we need to fix it
         shl rcx,3
         sub rsp,rcx
-        mov rbp,qword [rbp] ;;mov point to prev rbp
+        mov rbp,r13 ;;mov point to prev rbp
         jmp r9
         .afterJump:
         ;;should not get here
