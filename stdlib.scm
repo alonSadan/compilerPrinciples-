@@ -33,18 +33,16 @@
         (f (car lst) (fold-right f acc (cdr lst)))))))
 
 ; ToDo: check if need to implement primitive reverse
+(define reverse (lambda (lst) (fold-left (lambda (acc x) (cons x acc)) '() lst)))
+(define cons* (lambda lst
+    (let* ((null? null?) (cons cons)
+			(car car) (cdr cdr)		    
+			(rev_lst (reverse lst))
+			(last (car rev_lst)) (lst_without_last (reverse (cdr rev_lst))))
+        (if (null? lst) 
+            '() 
+            (fold-right cons last lst_without_last)))))
 
-(define cons*
-	(let* ((null? null?) (cons cons)
-		(car car) (cdr cdr)
-		(reverse
-			(lambda (lst) (fold-left (lambda (acc x) (cons x acc)) '() lst))))
-	(lambda lst
-		(if (null? lst) '()
-			(let* ((rev_lst (reverse lst))
-					(last (car rev_lst))
-					(lst_without_last (reverse (cdr rev_lst))))
-				(fold-right cons last lst_without_last))))))
 
 ; (define fold-left
 ;   #;(Add your implementation here
@@ -212,7 +210,7 @@
 		 ((and (flonum? x) (flonum? y)) (= x y))
 		 ((and (char? x) (char? y)) (= (char->integer x) (char->integer y)))
 		 ((and (pair? x) (pair? y))
-		  (equal?-loop (car x) (car y)) (equal?-loop (cdr x) (cdr y)))
+		  (and (equal?-loop (car x) (car y)) (equal?-loop (cdr x) (cdr y))))
 		 ((and (string? x) (string? y)) (equal?-loop (string->list x) (string->list y)))
 		 (else (eq? x y))))))
     equal?-loop)))

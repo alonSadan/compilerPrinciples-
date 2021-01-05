@@ -201,9 +201,10 @@ let rec make_generate  constant_table fvars_table e=
   | Def'(var,value) | Set'(var,value) -> make_gen_set  constant_table fvars_table var value
   | BoxGet'(var) -> make_gen_box_get constant_table fvars_table var
   | BoxSet'(var,value) -> make_gen_box_set  constant_table fvars_table var value
-  | LambdaSimple'(arglist,body) -> make_gen_lambda  constant_table fvars_table arglist body
+  | LambdaSimple'(arglist,body) -> make_gen_lambda  constant_table fvars_table arglist body ""
   | Applic'(proc,args) -> make_gen_applic  constant_table fvars_table proc args
   | ApplicTP'(proc,args) -> make_gen_applicTP  constant_table fvars_table proc args
+  | LambdaOpt'(arglist,opt,body) -> make_gen_lambda  constant_table fvars_table arglist body opt
   | _ -> ""
 (* raise (ALON_ERR1 e) *)
 and make_gen_const constant_table c = "mov rax, const_tbl+" ^ (get_str_pos c constant_table) ^ "\n"
@@ -268,7 +269,7 @@ and make_gen_box_set  constant_table fvars_table var value =
     "^ eps_var ^"
     pop qword [rax] \n
     mov rax, SOB_VOID_ADDRESS \n"
-and make_gen_lambda  constant_table fvars_table arglist body =
+and make_gen_lambda  constant_table fvars_table arglist body opt =
   (*only for empty lex : make closure without extend
     ToDo: maybe also give lcode,lbody another ind (they share same instance with the IF labels)*)
   (* LEXICAL_ENV = [rbp+16] *)
@@ -354,11 +355,67 @@ and make_gen_lambda  constant_table fvars_table arglist body =
     num_of_args^minors_size^minors^alloc_minors^set_lex_env in
 
   let eps_body = make_generate constant_table fvars_table body in
+  let adjustBody = 
+    match opt with
+      | "" -> ""
+      | s ->
+      "
+        .adjust"^ind^":
+        
+        mov rdx,ARGS_NUMBER 
+        sub rdx,"^ string_of_int (List.length arglist) ^" ;;get size of opt list \n
+        
+        mov rax,SOB_NIL_ADDRESS 
+        push rdx ;; backup for later \n
+        cmp rdx,0
+        je .end_make_proper_lst"^ind^"
+        
+        .make_proper_lst"^ind^":
+        cmp rdx,0                
+        je .end_make_proper_lst"^ind^"
+        dec rdx 
+        mov rbx,qword[rbp+(4+"^ string_of_int (List.length arglist) ^"+rdx)*WORD_SIZE] ;;load car \n
+        mov r8,rax       
+        MAKE_PAIR(rax,rbx,r8)         
+        jmp .make_proper_lst"^ind^" 
+        
+        .end_make_proper_lst"^ind^": 
+        pop rdx 
+        push rax 
+
+        mov rcx,ARGS_NUMBER        
+        sub rcx,rdx          
+        .insert_params"^ind^":                
+        jz .end_insert_params"^ind^"
+        dec rcx
+        push PVAR(rcx) 
+        jmp .insert_params"^ind^"
+
+        .end_insert_params"^ind^":
+        mov rcx,"^string_of_int (List.length arglist)^" 
+        inc rcx ; set new number of args 
+        push rcx 
+        push qword[rbp+8*2] 
+        push qword[rbp+8] 
+        push qword[rbp] 
+
+        mov rax,qword[rbp] 
+        mov rbx,ARGS_NUMBER 
+        ;;frame number: 4 + mandatory args num + ops (1)
+        SHIFT_FRAME "^string_of_int ((List.length arglist)+4+1)^" 
+        sub rcx,rbx 
+        shl rcx,3 
+        mov rsp,rbp
+        sub rsp,rcx 
+        mov rbp,rsp
+        DEBUG_"^ind^":
+      " in 
   let code =
     "Lcode"^ind^":
     push rbp
     mov rbp , rsp \n
     ;; LAMBDA_BODY: \n"
+    ^ adjustBody^ "\n"
     ^ eps_body ^ "\n
     ;; LAMBDA_BODY_END \n
     leave

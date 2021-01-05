@@ -167,20 +167,6 @@
 %define MAKE_VOID db T_VOID
 %define MAKE_BOOL(val) MAKE_LITERAL T_BOOL, db val
 
-; %macro SHIFT_FRAME 1 ;%1 = size of frame(constant)
-; 	push rax
-; 	mov rax, ARGS_NUMBER
-; 	add rax, 4 ;;maybe change it to 5 after magic
-; %assign i 1
-; %rep %1
-; 	dec rax
-; 	push qword [rbp-WORD_SIZE*i]
-; 	pop qword [rbp+WORD_SIZE*rax]
-; %assign i i+1
-; %endrep
-; 	pop rax
-; %endmacro
-
 %macro SHIFT_FRAME 1 ;%1 = size of frame(constant)
 	push rax
 	mov rax, ARGS_NUMBER
@@ -244,20 +230,7 @@ loop %%shift_frame_loop
 	pop rax
 %endmacro
 
-; ; dst,src,number
-%macro MEMMOVE 3
-	push rcx
-	mov rcx,%3
-	cmp rcx,0
-	%%memmove_loop:
-	jz %%memmove_end_loop
-	dec rcx
-	push qword [%2+WORD_SIZE*rcx]
-	pop qword [%1+WORD_SIZE*rcx]
-	jmp %%memmove_loop
-	%%memmove_end_loop:
-	pop rcx
-%endmacro
+
 
 
 
