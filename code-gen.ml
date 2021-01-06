@@ -199,13 +199,13 @@ let rec make_generate  constant_table fvars_table e=
   | If'(test,dit,dif) -> make_gen_if  constant_table fvars_table test dit dif
   | Or'(exprs) -> make_gen_or  constant_table fvars_table exprs
   | Def'(var,value) | Set'(var,value) -> make_gen_set  constant_table fvars_table var value
+  | Box'(var) -> make_gen_box constant_table fvars_table var
   | BoxGet'(var) -> make_gen_box_get constant_table fvars_table var
   | BoxSet'(var,value) -> make_gen_box_set  constant_table fvars_table var value
   | LambdaSimple'(arglist,body) -> make_gen_lambda  constant_table fvars_table arglist body ""
   | Applic'(proc,args) -> make_gen_applic  constant_table fvars_table proc args
   | ApplicTP'(proc,args) -> make_gen_applicTP  constant_table fvars_table proc args
   | LambdaOpt'(arglist,opt,body) -> make_gen_lambda  constant_table fvars_table arglist body opt
-  | _ -> ""
 (* raise (ALON_ERR1 e) *)
 and make_gen_const constant_table c = "mov rax, const_tbl+" ^ (get_str_pos c constant_table) ^ "\n"
 and make_gen_var fvars_table v =
@@ -213,9 +213,10 @@ and make_gen_var fvars_table v =
   | VarFree(name) -> "mov rax, qword [fvar_tbl+" ^ get_str_fvar_index name fvars_table ^ "] \n "
   | VarParam(_, minor) -> "mov rax, qword [rbp + " ^ (string_of_int (8*(4+minor))) ^"] " ^make_comment "pvar: " minor^" \n"
   | VarBound(_, major, minor) ->
-    "mov rax, qword [rbp + 16] \n
-        mov rax, qword [rax + " ^ (string_of_int (8*major)) ^"]
-        mov rax, qword [rax + " ^ (string_of_int (8*minor)) ^"] \n"
+    ";;VAR_BOUND \n
+    mov rax, qword [rbp + 16] 
+    mov rax, qword [rax + " ^ (string_of_int (8*major)) ^"]
+    mov rax, qword [rax + " ^ (string_of_int (8*minor)) ^"] \n"
 
 and make_gen_if  constant_table fvars_table test dit dif=
   let ind = (Gensym.next "") in
@@ -256,20 +257,32 @@ and make_gen_set  constant_table fvars_table var value=
         mov qword [rbx + " ^ (string_of_int (8*minor)) ^"], rax \n
         mov rax, SOB_VOID_ADDRESS \n"
 
-and make_gen_box_get constant_table fvars_table e =
-  let eps = make_gen_var fvars_table e in
-  eps ^
+and make_gen_box constant_table fvars_table v =
+  let eps = make_generate constant_table fvars_table (Var'(v)) in
+  ";;BOX \n
+  MALLOC rbx,8 
+  push rbx \n"
+  ^ eps ^
+  "pop rbx 
+  mov qword[rbx],rax 
+  mov rax, rbx\n"
+
+and make_gen_box_get constant_table fvars_table v =
+  let eps = make_gen_var fvars_table v in
+  ";;BOX_GET \n"
+  ^eps ^
   "mov rax, qword [rax] \n"
 
-and make_gen_box_set  constant_table fvars_table var value =
-  let eps_var = make_gen_var fvars_table var in
-  let eps = make_generate  constant_table fvars_table value in
-  eps ^
+and make_gen_box_set  constant_table fvars_table v exp =
+let eps = make_generate  constant_table fvars_table exp in  
+let eps_var = make_gen_var fvars_table v in
+  ";;BOX_SET \n"
+  ^ eps ^
   "push rax \n
     "^ eps_var ^"
     pop qword [rax] \n
     mov rax, SOB_VOID_ADDRESS \n"
-and make_gen_lambda  constant_table fvars_table arglist body opt =
+(* and make_gen_lambda  constant_table fvars_table arglist body opt =
   (*only for empty lex : make closure without extend
     ToDo: maybe also give lcode,lbody another ind (they share same instance with the IF labels)*)
   (* LEXICAL_ENV = [rbp+16] *)
@@ -332,7 +345,9 @@ and make_gen_lambda  constant_table fvars_table arglist body opt =
     cmp rbx,0
     jz l_end_copy_minors"^ind^"\n" in
   let minors_size ="shl rbx, 3  ;;mul with size of word (array of pointers) \n" in
-  let minors  = "MALLOC rcx, rbx ;; allocate minors\n" in
+  let minors  = 
+    "MALLOC rcx, rbx ;; allocate minors\n
+    shr rbx,3 \n" in
   let alloc_minors =
     (* if ind = (List.length arglist) then ""
        else  *)
@@ -395,9 +410,147 @@ and make_gen_lambda  constant_table fvars_table arglist body opt =
         mov rcx,"^string_of_int (List.length arglist)^" 
         inc rcx ; set new number of args 
         push rcx 
-        push qword[rbp+8*2] 
-        push qword[rbp+8] 
-        push qword[rbp] 
+        push qword[rbp+8*2] ;env
+        push qword[rbp+8] ;ret adr
+        push qword[rbp] ;old rbp
+
+        mov rax,qword[rbp] 
+        mov rbx,ARGS_NUMBER 
+        ;;frame number: 4 + mandatory args num + ops (1)
+        SHIFT_FRAME "^string_of_int ((List.length arglist)+4+1)^" 
+        sub rcx,rbx 
+        shl rcx,3 
+        mov rsp,rbp
+        sub rsp,rcx 
+        mov rbp,rsp
+        DEBUG_"^ind^":
+      " in 
+  let code =
+    "Lcode"^ind^":
+    push rbp
+    mov rbp , rsp \n
+    ;; LAMBDA_BODY: \n"
+    ^ adjustBody^ "\n"
+    ^ eps_body ^ "\n
+    ;; LAMBDA_BODY_END \n
+    leave
+    ret \n
+    Lcont"^ind^": \n" in
+
+  ";; Lambda_Simple: \n
+  Lambda_Simple"^ind^":\n
+  "^make_ext_env^" \n
+  jmp Lcont"^ind^ "\n"
+  ^ code ^
+  "mov rbx,LEXICAL_ENV \n
+  MAKE_CLOSURE(rax, rbx, Lcode"^ind^" ) \n" *)
+
+  and make_gen_lambda  constant_table fvars_table arglist body opt =
+  (*only for empty lex : make closure without extend
+    ToDo: maybe also give lcode,lbody another ind (they share same instance with the IF labels)*)
+  (* LEXICAL_ENV = [rbp+16] *)
+
+  let ind = (Gensym.next "") in
+  (* LEXICAL_ENV = null => { void* LEXICAL_ENV = malloc(size_of word), *LEXICAL = null }   *)
+  let make_ext_env = "
+  cmp LEXICAL_ENV, SOB_NIL_ADDRESS
+  jne end_first_alloc"^ind^" 
+  MALLOC rbx, WORD_SIZE 
+  mov qword [rbx],SOB_NIL_ADDRESS
+  mov LEXICAL_ENV, rbx
+  end_first_alloc"^ind^":
+  ;;calc |ENV| and store it in rcx 
+  mov rbx, LEXICAL_ENV
+  mov rcx, 0
+  l_env_counter"^ind^":
+  \t cmp qword [rbx + WORD_SIZE*rcx], SOB_NIL_ADDRESS
+  \t je l_env_counter_end"^ind^"
+  \t inc rcx
+  \t jmp l_env_counter"^ind^"
+  l_env_counter_end"^ind^":
+  ;; get old env 
+  mov rbx,LEXICAL_ENV
+  ;; we need to allocate |env+1| so we inc rcx which holds the length of the env list
+  inc rcx
+  mov rax,rcx
+  ;; leave place for Nil env
+  ;; allocated new env size |env|+1 
+  inc rax
+  shl rax,3
+  MALLOC rdx, rax
+  cmp rcx,0
+  lcopy"^ind^":
+  ;; take arguments from old env and copy them
+  \t jz l_end_copy"^ind^" 
+  \t dec rcx
+  \t mov rax, qword[rbx + WORD_SIZE*rcx]
+  \t mov qword [rdx + WORD_SIZE*rcx + WORD_SIZE], rax
+  \t jmp lcopy"^ind^" 
+  l_end_copy"^ind^":
+  mov rcx,0
+  mov rbx, ARGS_NUMBER ;; get number of args 
+  cmp rbx,0
+  jz l_end_copy_minors"^ind^"
+  shl rbx, 3  ;;mul with size of word (array of pointers) 
+  MALLOC rcx, rbx ;; allocate minors
+  shr rbx,3 
+  cmp rbx,0
+  copy_minors"^ind^":
+  \t jz l_end_copy_minors"^ind^"
+  \t dec rbx
+  \t mov rax,PVAR(rbx) 
+  \t mov qword[rcx+rbx*WORD_SIZE], rax ;; copy arg from stack to minor array in env 
+  \t jmp copy_minors"^ind^"
+  l_end_copy_minors"^ind^":
+  mov qword [rdx], rcx ;; load minors to extenv[0] 
+  mov LEXICAL_ENV,rdx
+  " in
+
+  let eps_body = make_generate constant_table fvars_table body in
+  let adjustBody = 
+    match opt with
+      | "" -> ""
+      | s ->
+      "
+        .adjust"^ind^":
+        
+        mov rdx,ARGS_NUMBER 
+        sub rdx,"^ string_of_int (List.length arglist) ^" ;;get size of opt list \n
+        
+        mov rax,SOB_NIL_ADDRESS 
+        push rdx ;; backup for later \n
+        cmp rdx,0
+        je .end_make_proper_lst"^ind^"
+        
+        .make_proper_lst"^ind^":
+        cmp rdx,0                
+        je .end_make_proper_lst"^ind^"
+        dec rdx 
+        mov rbx,qword[rbp+(4+"^ string_of_int (List.length arglist) ^"+rdx)*WORD_SIZE] ;;load car \n
+        mov r8,rax       
+        MAKE_PAIR(rax,rbx,r8)         
+        jmp .make_proper_lst"^ind^" 
+        
+        .end_make_proper_lst"^ind^": 
+        pop rdx 
+        push rax 
+
+        mov rcx,ARGS_NUMBER        
+        sub rcx,rdx
+        cmp rcx,0          
+        .insert_params"^ind^":                
+        jz .end_insert_params"^ind^"
+        dec rcx
+        push PVAR(rcx) 
+        jmp .insert_params"^ind^"
+
+        .end_insert_params"^ind^":
+        mov rcx,"^string_of_int (List.length arglist)^" 
+        inc rcx ; set new number of args 
+        push rcx 
+        push qword[rbp+8*2] ;env
+        push qword[rbp+8] ;ret adr
+        push qword[rbp] ;old rbp
 
         mov rax,qword[rbp] 
         mov rbx,ARGS_NUMBER 
@@ -429,6 +582,7 @@ and make_gen_lambda  constant_table fvars_table arglist body opt =
   ^ code ^
   "mov rbx,LEXICAL_ENV \n
   MAKE_CLOSURE(rax, rbx, Lcode"^ind^" ) \n"
+
 
 and make_gen_applic  constant_table fvars_table proc args =
   (* ToDo: maybe also add magic number to stack  *)
