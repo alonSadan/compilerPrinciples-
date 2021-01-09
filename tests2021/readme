@@ -1,0 +1,8 @@
+usage:
+./parse_all.py
+
+A nice script to wrap `compare.sh`. give them executable privilage with `chmod u+x` and run it.
+for every `.scm` file in your dir, it'll run `compare.sh` on it.
+remember that `compare.sh` runs from the tests dir when `compiler` if all `.ml` files is a subdir.
+use carefully cause `rm` included
+
