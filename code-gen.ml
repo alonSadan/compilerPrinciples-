@@ -271,7 +271,8 @@ and make_gen_box_get constant_table fvars_table v =
   let eps = make_gen_var fvars_table v in
   ";;BOX_GET \n"
   ^eps ^
-  "mov rax, qword [rax] \n"
+  "mov rax, qword [rax] \n
+  ;;BOX_GET_END \n"
 
 and make_gen_box_set  constant_table fvars_table v exp =
 let eps = make_generate  constant_table fvars_table exp in  
@@ -445,7 +446,7 @@ let eps_var = make_gen_var fvars_table v in
   "mov rbx,LEXICAL_ENV \n
   MAKE_CLOSURE(rax, rbx, Lcode"^ind^" ) \n" *)
 
-  and make_gen_lambda  constant_table fvars_table arglist body opt =
+and make_gen_lambda  constant_table fvars_table arglist body opt =
   (*only for empty lex : make closure without extend
     ToDo: maybe also give lcode,lbody another ind (they share same instance with the IF labels)*)
   (* LEXICAL_ENV = [rbp+16] *)
@@ -489,8 +490,8 @@ let eps_var = make_gen_var fvars_table v in
   l_end_copy"^ind^":
   mov rcx,0
   mov rbx, ARGS_NUMBER ;; get number of args 
-  cmp rbx,0
-  jz l_end_copy_minors"^ind^"
+  ;;cmp rbx,0
+  ;;jz l_end_copy_minors"^ind^"
   shl rbx, 3  ;;mul with size of word (array of pointers) 
   MALLOC rcx, rbx ;; allocate minors
   shr rbx,3 
@@ -503,7 +504,8 @@ let eps_var = make_gen_var fvars_table v in
   \t jmp copy_minors"^ind^"
   l_end_copy_minors"^ind^":
   mov qword [rdx], rcx ;; load minors to extenv[0] 
-  mov LEXICAL_ENV,rdx
+  ;;mov LEXICAL_ENV,rdx
+  MAKE_CLOSURE(rax, rdx, Lcode"^ind^" ) \n
   " in
 
   let eps_body = make_generate constant_table fvars_table body in
@@ -519,12 +521,10 @@ let eps_var = make_gen_var fvars_table v in
         
         mov rax,SOB_NIL_ADDRESS 
         push rdx ;; backup for later \n
-        cmp rdx,0
-        je .end_make_proper_lst"^ind^"
         
         .make_proper_lst"^ind^":
-        cmp rdx,0                
-        je .end_make_proper_lst"^ind^"
+        cmp rdx,0
+        jz .end_make_proper_lst"^ind^"
         dec rdx 
         mov rbx,qword[rbp+(4+"^ string_of_int (List.length arglist) ^"+rdx)*WORD_SIZE] ;;load car \n
         mov r8,rax       
@@ -580,12 +580,13 @@ let eps_var = make_gen_var fvars_table v in
   "^make_ext_env^" \n
   jmp Lcont"^ind^ "\n"
   ^ code ^
-  "mov rbx,LEXICAL_ENV \n
-  MAKE_CLOSURE(rax, rbx, Lcode"^ind^" ) \n"
+  ";;mov rbx,LEXICAL_ENV \n
+  ;;MAKE_CLOSURE(rax, rbx, Lcode"^ind^" ) \n"
 
 
 and make_gen_applic  constant_table fvars_table proc args =
   (* ToDo: maybe also add magic number to stack  *)
+  let ind = (Gensym.next "") in
   let eps_lst = List.map (make_generate  constant_table fvars_table) (List.rev args) in
   let eps_proc = make_generate  constant_table fvars_table proc in
   let ans_args = String.concat "\n" (List.map (fun e-> e ^ "push rax \n") eps_lst) in
@@ -598,6 +599,7 @@ and make_gen_applic  constant_table fvars_table proc args =
   CLOSURE_CODE r9, rax ;;store closure code/body in r9 (pointer register)
   push r8
   call r9
+  KAKI"^ind^":
   add rsp, 8 ;; pop env
   pop rbx ;; pop arg count
   ;;inc rbx ;; also pop magic

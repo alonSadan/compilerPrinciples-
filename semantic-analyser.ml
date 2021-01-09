@@ -435,7 +435,7 @@ module Semantics : SEMANTICS = struct
       )
     | _ -> raise X_syntax_error;;
 
-
+  let should_box2 expr name = true;;
   let should_box expr name =
     let isExistBound0 v = List.exists (fun x-> match x with | VarBound(_,0,_) -> true | _ -> false) v in
     let isExistBound0Plus v = List.exists (fun x-> match x with | VarBound(_,major,_) -> major > 0 | _ -> false) v in
@@ -538,7 +538,7 @@ module Semantics : SEMANTICS = struct
 
     | LambdaSimple'(arglist,body) ->
       (
-        let box_vars_new = List.filter (fun v-> should_box (LambdaSimple'(arglist,body)) v) arglist in
+        let box_vars_new = List.filter (fun v-> should_box2 (LambdaSimple'(arglist,body)) v) arglist in
         let box_signatures = List.map (fun v-> Set'(VarParam(v, find v arglist), Box'(VarParam(v,find v arglist)))) box_vars_new in
 
         let box_vars2 =
@@ -558,7 +558,7 @@ module Semantics : SEMANTICS = struct
 
     | LambdaOpt'(arglist,opt,body) ->
       (
-        let box_vars_new = List.filter (fun v-> should_box (LambdaOpt'(arglist,opt,body)) v) (arglist@[opt]) in
+        let box_vars_new = List.filter (fun v-> should_box2 (LambdaOpt'(arglist,opt,body)) v) (arglist@[opt]) in
         let box_signatures = List.map (fun v-> Set'(VarParam(v, find v (arglist @ [opt])), Box'(VarParam(v,find v (arglist @ [opt])))))  box_vars_new in
 
         let box_vars2 =
@@ -594,8 +594,8 @@ module Semantics : SEMANTICS = struct
   let annotate_lexical_addresses e = annotate_lexical_expr e [];;
 
   let annotate_tail_calls e =
-    (* e;; *)
-    annotate_tail e false;;
+    e;;
+    (* annotate_tail e false;; *)
   (*raise X_not_yet_implemented;;*)
 
   let box_set e = make_box e [];;
