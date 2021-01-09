@@ -42,22 +42,32 @@
         (if (null? lst) 
             '() 
             (fold-right cons last lst_without_last)))))
-
-
-; (define fold-left
-;   #;(Add your implementation here
-;      Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
-;      This is on purpose, so you don't compile the library without completing this implementation by mistake.))
-
-; (define fold-right
-;   #;(Add your implementation here
-;      Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
-;      This is on purpose, so you don't compile the library without completing this implementation by mistake.))
-
 ; (define cons*
-;   #;(Add your implementation here
-;      Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
-;      This is on purpose, so you don't compile the library without completing this implementation by mistake.))
+; 	(let* ((null? null?) (cons cons)
+; 		(car car) (cdr cdr)
+; 		(reverse
+; 			(lambda (lst) (fold-left (lambda (acc x) (cons x acc)) '() lst))))
+; 	(lambda lst
+; 		(if (null? lst) '()
+; 			(let* ((rev_lst (reverse lst))
+; 					(last (car rev_lst))
+; 					(lst_without_last (reverse (cdr rev_lst))))
+; 				(fold-right cons last lst_without_last))))))
+
+; ; (define fold-left
+; ;   #;(Add your implementation here
+; ;      Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
+; ;      This is on purpose, so you don't compile the library without completing this implementation by mistake.))
+
+; ; (define fold-right
+; ;   #;(Add your implementation here
+; ;      Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
+; ;      This is on purpose, so you don't compile the library without completing this implementation by mistake.))
+
+; ; (define cons*
+; ;   #;(Add your implementation here
+; ;      Note: The file won't compile like this, beacuase your tag-parser requires define to have a second expression.
+; ;      This is on purpose, so you don't compile the library without completing this implementation by mistake.))
 
 
 
@@ -96,6 +106,8 @@
 
 (define not
   (lambda (x) (if x #f #t)))
+
+
 
 (let ((flonum? flonum?) (rational? rational?)
       (exact->inexact exact->inexact)
@@ -210,7 +222,7 @@
 		 ((and (flonum? x) (flonum? y)) (= x y))
 		 ((and (char? x) (char? y)) (= (char->integer x) (char->integer y)))
 		 ((and (pair? x) (pair? y))
-		  (and (equal?-loop (car x) (car y)) (equal?-loop (cdr x) (cdr y))))
+		  (equal?-loop (car x) (car y)) (equal?-loop (cdr x) (cdr y)))
 		 ((and (string? x) (string? y)) (equal?-loop (string->list x) (string->list y)))
 		 (else (eq? x y))))))
     equal?-loop)))
