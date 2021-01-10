@@ -140,7 +140,7 @@ let rec make_first_sexpr_lst asts ans =
           )
         | If'(test,dit,dif) -> make_first_sexpr_lst [test;dit;dif] ans
         | Seq'(l) | Or'(l) -> make_first_sexpr_lst l ans
-        | Set'(var,e) | Def'(var,e) -> make_first_sexpr_lst [e] ans
+        | Set'(var,e) | Def'(var,e) | BoxSet'(var,e) -> make_first_sexpr_lst [e] ans
         | LambdaSimple'(args,body) -> make_first_sexpr_lst [body] ans
         | LambdaOpt'(args,opt,body) -> make_first_sexpr_lst [body] ans
         | Applic'(proc,args) | ApplicTP'(proc,args) -> make_first_sexpr_lst ([proc] @ args) ans
@@ -160,10 +160,11 @@ let rec make_init_fvar_lst asts ans =
           )
         | If'(test,dit,dif) -> make_init_fvar_lst [test;dit;dif] ans
         | Seq'(l) | Or'(l) -> make_init_fvar_lst l ans
-        | Set'(var,e) | Def'(var,e) -> make_init_fvar_lst [e] (make_init_fvar_lst [(Var'(var))] ans)
+        | Set'(var,e) | Def'(var,e) | BoxSet'(var,e) -> make_init_fvar_lst [e] (make_init_fvar_lst [(Var'(var))] ans)
         | LambdaSimple'(args,body) -> make_init_fvar_lst [body] ans
         | LambdaOpt'(args,opt,body) -> make_init_fvar_lst [body] ans
         | Applic'(proc,args) | ApplicTP'(proc,args) -> make_init_fvar_lst ([proc] @ args) ans
+        | Box'(v) | BoxGet'(v) -> (make_init_fvar_lst [(Var'(v))] ans)
         | _ -> ans in
       make_init_fvar_lst tl curr);;
 
@@ -177,7 +178,8 @@ let init_const_tbl_lst asts =
 
 let make_fvars_table_helper asts =
   let naive_fvar_lst = make_init_fvar_lst asts [] in
-  let set = (make_set primitive_names) @ naive_fvar_lst in
+  let tmp_set = (make_set primitive_names) @ naive_fvar_lst in
+  let set = (make_set tmp_set) in
   set;;
 
 let get_fvar_index name table = List.assoc name table;;
@@ -214,7 +216,7 @@ and make_gen_var fvars_table v =
   | VarParam(_, minor) -> "mov rax, qword [rbp + " ^ (string_of_int (8*(4+minor))) ^"] " ^make_comment "pvar: " minor^" \n"
   | VarBound(_, major, minor) ->
     ";;VAR_BOUND \n
-    mov rax, qword [rbp + 16] 
+    mov rax, qword [rbp + 16]
     mov rax, qword [rax + " ^ (string_of_int (8*major)) ^"]
     mov rax, qword [rax + " ^ (string_of_int (8*minor)) ^"] \n"
 
@@ -260,11 +262,11 @@ and make_gen_set  constant_table fvars_table var value=
 and make_gen_box constant_table fvars_table v =
   let eps = make_generate constant_table fvars_table (Var'(v)) in
   ";;BOX \n
-  MALLOC rbx,8 
+  MALLOC rbx,8
   push rbx \n"
   ^ eps ^
-  "pop rbx 
-  mov qword[rbx],rax 
+  "pop rbx
+  mov qword[rbx],rax
   mov rax, rbx\n"
 
 and make_gen_box_get constant_table fvars_table v =
@@ -275,7 +277,7 @@ and make_gen_box_get constant_table fvars_table v =
   ;;BOX_GET_END \n"
 
 and make_gen_box_set  constant_table fvars_table v exp =
-let eps = make_generate  constant_table fvars_table exp in  
+let eps = make_generate  constant_table fvars_table exp in
 let eps_var = make_gen_var fvars_table v in
   ";;BOX_SET \n"
   ^ eps ^
@@ -346,7 +348,7 @@ let eps_var = make_gen_var fvars_table v in
     cmp rbx,0
     jz l_end_copy_minors"^ind^"\n" in
   let minors_size ="shl rbx, 3  ;;mul with size of word (array of pointers) \n" in
-  let minors  = 
+  let minors  =
     "MALLOC rcx, rbx ;; allocate minors\n
     shr rbx,3 \n" in
   let alloc_minors =
@@ -371,61 +373,61 @@ let eps_var = make_gen_var fvars_table v in
     num_of_args^minors_size^minors^alloc_minors^set_lex_env in
 
   let eps_body = make_generate constant_table fvars_table body in
-  let adjustBody = 
+  let adjustBody =
     match opt with
       | "" -> ""
       | s ->
       "
         .adjust"^ind^":
-        
-        mov rdx,ARGS_NUMBER 
+
+        mov rdx,ARGS_NUMBER
         sub rdx,"^ string_of_int (List.length arglist) ^" ;;get size of opt list \n
-        
-        mov rax,SOB_NIL_ADDRESS 
+
+        mov rax,SOB_NIL_ADDRESS
         push rdx ;; backup for later \n
         cmp rdx,0
         je .end_make_proper_lst"^ind^"
-        
-        .make_proper_lst"^ind^":
-        cmp rdx,0                
-        je .end_make_proper_lst"^ind^"
-        dec rdx 
-        mov rbx,qword[rbp+(4+"^ string_of_int (List.length arglist) ^"+rdx)*WORD_SIZE] ;;load car \n
-        mov r8,rax       
-        MAKE_PAIR(rax,rbx,r8)         
-        jmp .make_proper_lst"^ind^" 
-        
-        .end_make_proper_lst"^ind^": 
-        pop rdx 
-        push rax 
 
-        mov rcx,ARGS_NUMBER        
-        sub rcx,rdx          
-        .insert_params"^ind^":                
+        .make_proper_lst"^ind^":
+        cmp rdx,0
+        je .end_make_proper_lst"^ind^"
+        dec rdx
+        mov rbx,qword[rbp+(4+"^ string_of_int (List.length arglist) ^"+rdx)*WORD_SIZE] ;;load car \n
+        mov r8,rax
+        MAKE_PAIR(rax,rbx,r8)
+        jmp .make_proper_lst"^ind^"
+
+        .end_make_proper_lst"^ind^":
+        pop rdx
+        push rax
+
+        mov rcx,ARGS_NUMBER
+        sub rcx,rdx
+        .insert_params"^ind^":
         jz .end_insert_params"^ind^"
         dec rcx
-        push PVAR(rcx) 
+        push PVAR(rcx)
         jmp .insert_params"^ind^"
 
         .end_insert_params"^ind^":
-        mov rcx,"^string_of_int (List.length arglist)^" 
-        inc rcx ; set new number of args 
-        push rcx 
+        mov rcx,"^string_of_int (List.length arglist)^"
+        inc rcx ; set new number of args
+        push rcx
         push qword[rbp+8*2] ;env
         push qword[rbp+8] ;ret adr
         push qword[rbp] ;old rbp
 
-        mov rax,qword[rbp] 
-        mov rbx,ARGS_NUMBER 
+        mov rax,qword[rbp]
+        mov rbx,ARGS_NUMBER
         ;;frame number: 4 + mandatory args num + ops (1)
-        SHIFT_FRAME "^string_of_int ((List.length arglist)+4+1)^" 
-        sub rcx,rbx 
-        shl rcx,3 
+        SHIFT_FRAME "^string_of_int ((List.length arglist)+4+1)^"
+        sub rcx,rbx
+        shl rcx,3
         mov rsp,rbp
-        sub rsp,rcx 
+        sub rsp,rcx
         mov rbp,rsp
         DEBUG_"^ind^":
-      " in 
+      " in
   let code =
     "Lcode"^ind^":
     push rbp
@@ -455,12 +457,12 @@ and make_gen_lambda  constant_table fvars_table arglist body opt =
   (* LEXICAL_ENV = null => { void* LEXICAL_ENV = malloc(size_of word), *LEXICAL = null }   *)
   let make_ext_env = "
   cmp LEXICAL_ENV, SOB_NIL_ADDRESS
-  jne end_first_alloc"^ind^" 
-  MALLOC rbx, WORD_SIZE 
+  jne end_first_alloc"^ind^"
+  MALLOC rbx, WORD_SIZE
   mov qword [rbx],SOB_NIL_ADDRESS
   mov LEXICAL_ENV, rbx
   end_first_alloc"^ind^":
-  ;;calc |ENV| and store it in rcx 
+  ;;calc |ENV| and store it in rcx
   mov rbx, LEXICAL_ENV
   mov rcx, 0
   l_env_counter"^ind^":
@@ -469,100 +471,100 @@ and make_gen_lambda  constant_table fvars_table arglist body opt =
   \t inc rcx
   \t jmp l_env_counter"^ind^"
   l_env_counter_end"^ind^":
-  ;; get old env 
+  ;; get old env
   mov rbx,LEXICAL_ENV
   ;; we need to allocate |env+1| so we inc rcx which holds the length of the env list
   inc rcx
   mov rax,rcx
   ;; leave place for Nil env
-  ;; allocated new env size |env|+1 
+  ;; allocated new env size |env|+1
   inc rax
   shl rax,3
   MALLOC rdx, rax
   cmp rcx,0
   lcopy"^ind^":
   ;; take arguments from old env and copy them
-  \t jz l_end_copy"^ind^" 
+  \t jz l_end_copy"^ind^"
   \t dec rcx
   \t mov rax, qword[rbx + WORD_SIZE*rcx]
   \t mov qword [rdx + WORD_SIZE*rcx + WORD_SIZE], rax
-  \t jmp lcopy"^ind^" 
+  \t jmp lcopy"^ind^"
   l_end_copy"^ind^":
   mov rcx,0
-  mov rbx, ARGS_NUMBER ;; get number of args 
+  mov rbx, ARGS_NUMBER ;; get number of args
   ;;cmp rbx,0
   ;;jz l_end_copy_minors"^ind^"
-  shl rbx, 3  ;;mul with size of word (array of pointers) 
+  shl rbx, 3  ;;mul with size of word (array of pointers)
   MALLOC rcx, rbx ;; allocate minors
-  shr rbx,3 
+  shr rbx,3
   cmp rbx,0
   copy_minors"^ind^":
   \t jz l_end_copy_minors"^ind^"
   \t dec rbx
-  \t mov rax,PVAR(rbx) 
-  \t mov qword[rcx+rbx*WORD_SIZE], rax ;; copy arg from stack to minor array in env 
+  \t mov rax,PVAR(rbx)
+  \t mov qword[rcx+rbx*WORD_SIZE], rax ;; copy arg from stack to minor array in env
   \t jmp copy_minors"^ind^"
   l_end_copy_minors"^ind^":
-  mov qword [rdx], rcx ;; load minors to extenv[0] 
+  mov qword [rdx], rcx ;; load minors to extenv[0]
   ;;mov LEXICAL_ENV,rdx
   MAKE_CLOSURE(rax, rdx, Lcode"^ind^" ) \n
   " in
 
   let eps_body = make_generate constant_table fvars_table body in
-  let adjustBody = 
+  let adjustBody =
     match opt with
       | "" -> ""
       | s ->
       "
         .adjust"^ind^":
-        
-        mov rdx,ARGS_NUMBER 
+
+        mov rdx,ARGS_NUMBER
         sub rdx,"^ string_of_int (List.length arglist) ^" ;;get size of opt list \n
-        
-        mov rax,SOB_NIL_ADDRESS 
+
+        mov rax,SOB_NIL_ADDRESS
         push rdx ;; backup for later \n
-        
+
         .make_proper_lst"^ind^":
         cmp rdx,0
         jz .end_make_proper_lst"^ind^"
-        dec rdx 
+        dec rdx
         mov rbx,qword[rbp+(4+"^ string_of_int (List.length arglist) ^"+rdx)*WORD_SIZE] ;;load car \n
-        mov r8,rax       
-        MAKE_PAIR(rax,rbx,r8)         
-        jmp .make_proper_lst"^ind^" 
-        
-        .end_make_proper_lst"^ind^": 
-        pop rdx 
-        push rax 
+        mov r8,rax
+        MAKE_PAIR(rax,rbx,r8)
+        jmp .make_proper_lst"^ind^"
 
-        mov rcx,ARGS_NUMBER        
+        .end_make_proper_lst"^ind^":
+        pop rdx
+        push rax
+
+        mov rcx,ARGS_NUMBER
         sub rcx,rdx
-        cmp rcx,0          
-        .insert_params"^ind^":                
+        cmp rcx,0
+        .insert_params"^ind^":
         jz .end_insert_params"^ind^"
         dec rcx
-        push PVAR(rcx) 
+        push PVAR(rcx)
         jmp .insert_params"^ind^"
 
         .end_insert_params"^ind^":
-        mov rcx,"^string_of_int (List.length arglist)^" 
-        inc rcx ; set new number of args 
-        push rcx 
+        mov rcx,"^string_of_int (List.length arglist)^"
+        inc rcx ; set new number of args
+        push rcx
         push qword[rbp+8*2] ;env
         push qword[rbp+8] ;ret adr
         push qword[rbp] ;old rbp
 
-        mov rax,qword[rbp] 
-        mov rbx,ARGS_NUMBER 
+        mov rax,qword[rbp]
+        mov rbx,ARGS_NUMBER
         ;;frame number: 4 + mandatory args num + ops (1)
-        SHIFT_FRAME "^string_of_int ((List.length arglist)+4+1)^" 
-        sub rcx,rbx 
-        shl rcx,3 
+        SHIFT_FRAME "^string_of_int ((List.length arglist)+4+1)^"
+        sub rcx,rbx
+        shl rcx,3
         mov rsp,rbp
-        sub rsp,rcx 
+        sub rsp,rcx
         mov rbp,rsp
         DEBUG_"^ind^":
-      " in 
+      " in
   let code =
     "Lcode"^ind^":
     push rbp
@@ -633,7 +635,7 @@ and make_gen_applicTP  constant_table fvars_table proc args =
   dec rcx ;;we didnt push rbp-in f in fixed stacked from prev stack, so we need to fix it
   sub rcx,rbx
   shl rcx,3
-  mov rsp,rbp 
+  mov rsp,rbp
   sub rsp,rcx
   mov rbp,r13
   ;; start function body
