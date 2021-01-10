@@ -9,7 +9,7 @@
    However, adding correctness-checking and error handling *as general templates* would be
    rather simple.
  *)
- module type PRIMS = sig
+module type PRIMS = sig
   val procs : string;;
 end
 
@@ -73,13 +73,13 @@ module Prims : PRIMS = struct
      function over this list. Note that the query template function makes use of some of the other templating
      functions defined above: `make_unary` (predicates take only one argument) and `return_boolean_eq` (since
      these are equality-testing predicates).
-   *)
+  *)
   let type_queries =
     let queries_to_types = [
-        "boolean", "T_BOOL"; "flonum", "T_FLOAT"; "rational", "T_RATIONAL"; "pair", "T_PAIR";
-        "null", "T_NIL"; "char", "T_CHAR"; "string", "T_STRING"; "symbol", "T_SYMBOL";
-        "procedure", "T_CLOSURE"
-      ] in
+      "boolean", "T_BOOL"; "flonum", "T_FLOAT"; "rational", "T_RATIONAL"; "pair", "T_PAIR";
+      "null", "T_NIL"; "char", "T_CHAR"; "string", "T_STRING"; "symbol", "T_SYMBOL";
+      "procedure", "T_CLOSURE"
+    ] in
     let single_query name type_tag =
       make_unary (name ^ "?")
         (return_boolean_eq ("mov sil, byte [rsi]\n\tcmp sil, " ^ type_tag)) in
@@ -126,84 +126,84 @@ module Prims : PRIMS = struct
      - `lt.flt` does not handle NaN, +inf and -inf correctly. This allows us to use `return_boolean jl` for both the
        floating-point and the fraction cases. For a fully correct implementation, `lt.flt` should make use of
        the `ucomisd` opcode and `return_boolean jb` instead (see https://www.felixcloutier.com/x86/ucomisd for more information).
-   *)
+  *)
   let numeric_ops =
     let numeric_op name flt_body rat_body body_wrapper =
       make_binary name
         (body_wrapper
            ("mov dl, byte [rsi]
              cmp dl, T_FLOAT
-	     jne ." ^ name ^ "_rat
+jne ." ^ name ^ "_rat
              " ^ flt_body ^ "
              jmp .op_return
           ." ^ name ^ "_rat:
              " ^ rat_body ^ "
           .op_return:")) in
     let arith_map = [
-        "MAKE_RATIONAL(rax, rdx, rdi)
+      "MAKE_RATIONAL(rax, rdx, rdi)
          mov PVAR(1), rax
          pop rbp
          jmp mul", "divsd", "div";
 
-        "imul rsi, rdi
-	 imul rcx, rdx", "mulsd", "mul";
+      "imul rsi, rdi
+imul rcx, rdx", "mulsd", "mul";
 
-        "imul rsi, rdx
-	 imul rdi, rcx
-	 add rsi, rdi
-	 imul rcx, rdx", "addsd", "add";
-      ] in
+      "imul rsi, rdx
+imul rdi, rcx
+add rsi, rdi
+imul rcx, rdx", "addsd", "add";
+    ] in
     let arith name flt_op rat_op =
       numeric_op name
         ("FLOAT_VAL rsi, rsi
           movq xmm0, rsi
           FLOAT_VAL rdi, rdi
           movq xmm1, rdi
-	  " ^ flt_op ^ " xmm0, xmm1
+" ^ flt_op ^ " xmm0, xmm1
           movq rsi, xmm0
           MAKE_FLOAT(rax, rsi)")
         ("DENOMINATOR rcx, rsi
-	  DENOMINATOR rdx, rdi
-	  NUMERATOR rsi, rsi
-	  NUMERATOR rdi, rdi
+DENOMINATOR rdx, rdi
+NUMERATOR rsi, rsi
+NUMERATOR rdi, rdi
           " ^ rat_op ^ "
           MAKE_RATIONAL(rax, rsi, rcx)") in
     let comp_map = [
-        (* = *)
-        return_boolean_eq,
-        "NUMERATOR rcx, rsi
-	 NUMERATOR rdx, rdi
-	 cmp rcx, rdx
-	 jne .false
-	 DENOMINATOR rcx, rsi
-	 DENOMINATOR rdx, rdi
-	 cmp rcx, rdx
+      (* = *)
+      return_boolean_eq,
+      "NUMERATOR rcx, rsi
+NUMERATOR rdx, rdi
+cmp rcx, rdx
+jne .false
+DENOMINATOR rcx, rsi
+DENOMINATOR rdx, rdi
+cmp rcx, rdx
          .false:",
-        "FLOAT_VAL rsi, rsi
-	 FLOAT_VAL rdi, rdi
-	 cmp rsi, rdi", "eq";
+      "FLOAT_VAL rsi, rsi
+FLOAT_VAL rdi, rdi
+cmp rsi, rdi", "eq";
 
-        (* < *)
-        return_boolean "jl",
-        "DENOMINATOR rcx, rsi
-	 DENOMINATOR rdx, rdi
-	 NUMERATOR rsi, rsi
-	 NUMERATOR rdi, rdi
-	 imul rsi, rdx
-	 imul rdi, rcx
-	 cmp rsi, rdi",
-        "FLOAT_VAL rsi, rsi
-	 movq xmm0, rsi
-	 FLOAT_VAL rdi, rdi
-	 movq xmm1, rdi
-	 cmpltpd xmm0, xmm1
-	 movq rsi, xmm0
-	 cmp rsi, 0", "lt";
-      ] in
+      (* < *)
+      return_boolean "jl",
+      "DENOMINATOR rcx, rsi
+DENOMINATOR rdx, rdi
+NUMERATOR rsi, rsi
+NUMERATOR rdi, rdi
+imul rsi, rdx
+imul rdi, rcx
+cmp rsi, rdi",
+      "FLOAT_VAL rsi, rsi
+movq xmm0, rsi
+FLOAT_VAL rdi, rdi
+movq xmm1, rdi
+cmpltpd xmm0, xmm1
+movq rsi, xmm0
+cmp rsi, 0", "lt";
+    ] in
     let comparator comp_wrapper name flt_body rat_body = numeric_op name flt_body rat_body comp_wrapper in
     (String.concat "\n\n" (List.map (fun (a, b, c) -> arith c b a (fun x -> x)) arith_map)) ^
-      "\n\n" ^
-        (String.concat "\n\n" (List.map (fun (a, b, c, d) -> comparator a d c b) comp_map));;
+    "\n\n" ^
+    (String.concat "\n\n" (List.map (fun (a, b, c, d) -> comparator a d c b) comp_map));;
 
 
   (* The following set of operations contain fewer similarities, to the degree that it doesn't seem that
@@ -212,26 +212,26 @@ module Prims : PRIMS = struct
      a uniform mapping operation to join them all into the final string.*)
   let misc_ops =
     let misc_parts = [
-        "CAR rax, rsi", make_unary,"car";
+      "CAR rax, rsi", make_unary,"car";
 
-        "CDR rax, rsi", make_unary,"cdr";
+      "CDR rax, rsi", make_unary,"cdr";
 
-        "MAKE_PAIR (rax, rsi, rdi)", make_binary,"cons";
+      "MAKE_PAIR (rax, rsi, rdi)", make_binary,"cons";
 
-        "mov qword[rsi+TYPE_SIZE], rdi  ;; give car a new value
+      "mov qword[rsi+TYPE_SIZE], rdi  ;; give car a new value
         mov rax, SOB_VOID_ADDRESS  ;; return void ",make_binary,"set_car";
 
-        "mov qword[rsi+TYPE_SIZE+WORD_SIZE], rdi  ;; give car a new value
+      "mov qword[rsi+TYPE_SIZE+WORD_SIZE], rdi  ;; give car a new value
         mov rax, SOB_VOID_ADDRESS  ;; return void ",make_binary,"set_cdr";
 
-        ";;ToDo: add thie line if magic is needed push -1 ;magic
+      ";;ToDo: add thie line if magic is needed push -1 ;magic
         .get_s_length:
         mov r8,ARGS_NUMBER
         dec r8
         mov rdx,PVAR(r8)
         PROPER_LIST_LENGTH rcx,rdx
         mov r15,rcx
-        cmp rcx,0 
+        cmp rcx,0
         je .end_insert_lst
 
         .set_rsp_to_insert_lst:
@@ -245,9 +245,9 @@ module Prims : PRIMS = struct
         LOAD_PROPER_LST r9, rdx
 
         .end_insert_lst:
-        mov rcx,ARGS_NUMBER  
+        mov rcx,ARGS_NUMBER
         cmp rcx,2
-        je .end_insert_params 
+        je .end_insert_params
         sub rcx,2 ;; args number without f and s
         add r15,rcx
 
@@ -280,102 +280,102 @@ module Prims : PRIMS = struct
         .afterJump:
         ;;should not get here
         mov rax,rax
-        
+
         ",make_routine,"my_apply";
-   
-        (* string ops *)
-        "STRING_LENGTH rsi, rsi
+
+      (* string ops *)
+      "STRING_LENGTH rsi, rsi
          MAKE_RATIONAL(rax, rsi, 1)", make_unary, "string_length";
 
-        "STRING_ELEMENTS rsi, rsi
+      "STRING_ELEMENTS rsi, rsi
          NUMERATOR rdi, rdi
          add rsi, rdi
          mov sil, byte [rsi]
          MAKE_CHAR(rax, sil)", make_binary, "string_ref";
 
-        "STRING_ELEMENTS rsi, rsi
+      "STRING_ELEMENTS rsi, rsi
          NUMERATOR rdi, rdi
          add rsi, rdi
          CHAR_VAL rax, rdx
          mov byte [rsi], al
          mov rax, SOB_VOID_ADDRESS", make_tertiary, "string_set";
 
-        "NUMERATOR rsi, rsi
+      "NUMERATOR rsi, rsi
          CHAR_VAL rdi, rdi
          and rdi, 255
          MAKE_STRING rax, rsi, dil", make_binary, "make_string";
 
-        "SYMBOL_VAL rsi, rsi
-	 STRING_LENGTH rcx, rsi
-	 STRING_ELEMENTS rdi, rsi
-	 push rcx
-	 push rdi
-	 mov dil, byte [rdi]
-	 MAKE_CHAR(rax, dil)
-	 push rax
-	 MAKE_RATIONAL(rax, rcx, 1)
-	 push rax
-	 push 2
-	 push SOB_NIL_ADDRESS
-	 call make_string
-	 add rsp, 4*8
-	 STRING_ELEMENTS rsi, rax
-	 pop rdi
-	 pop rcx
-	 cmp rcx, 0
-	 je .end
+      "SYMBOL_VAL rsi, rsi
+STRING_LENGTH rcx, rsi
+STRING_ELEMENTS rdi, rsi
+push rcx
+push rdi
+mov dil, byte [rdi]
+MAKE_CHAR(rax, dil)
+push rax
+MAKE_RATIONAL(rax, rcx, 1)
+push rax
+push 2
+push SOB_NIL_ADDRESS
+call make_string
+add rsp, 4*8
+STRING_ELEMENTS rsi, rax
+pop rdi
+pop rcx
+cmp rcx, 0
+je .end
          .loop:
-	 lea r8, [rdi+rcx]
-	 lea r9, [rsi+rcx]
-	 mov bl, byte [r8]
-	 mov byte [r9], bl
-	 loop .loop
+lea r8, [rdi+rcx]
+lea r9, [rsi+rcx]
+mov bl, byte [r8]
+mov byte [r9], bl
+loop .loop
          .end:", make_unary, "symbol_to_string";
 
-        (* the identity predicate (i.e., address equality) *)
-        (return_boolean_eq "cmp rsi, rdi"), make_binary, "eq?";
+      (* the identity predicate (i.e., address equality) *)
+      (return_boolean_eq "cmp rsi, rdi"), make_binary, "eq?";
 
-        (* type conversions *)
-        "CHAR_VAL rsi, rsi
-	 and rsi, 255
-	 MAKE_RATIONAL(rax, rsi, 1)", make_unary, "char_to_integer";
+      (* type conversions *)
+      "CHAR_VAL rsi, rsi
+and rsi, 255
+MAKE_RATIONAL(rax, rsi, 1)", make_unary, "char_to_integer";
 
-        "NUMERATOR rsi, rsi
-	 and rsi, 255
-	 MAKE_CHAR(rax, sil)", make_unary, "integer_to_char";
+      "NUMERATOR rsi, rsi
+and rsi, 255
+MAKE_CHAR(rax, sil)", make_unary, "integer_to_char";
 
-        "DENOMINATOR rdi, rsi
-	 NUMERATOR rsi, rsi
-	 cvtsi2sd xmm0, rsi
-	 cvtsi2sd xmm1, rdi
-	 divsd xmm0, xmm1
-	 movq rsi, xmm0
-	 MAKE_FLOAT(rax, rsi)", make_unary, "exact_to_inexact";
+      "DENOMINATOR rdi, rsi
+NUMERATOR rsi, rsi
+cvtsi2sd xmm0, rsi
+cvtsi2sd xmm1, rdi
+divsd xmm0, xmm1
+movq rsi, xmm0
+MAKE_FLOAT(rax, rsi)", make_unary, "exact_to_inexact";
 
-        "NUMERATOR rsi, rsi
-	 mov rdi, 1
-	 MAKE_RATIONAL(rax, rsi, rdi)", make_unary, "numerator";
+      "NUMERATOR rsi, rsi
+mov rdi, 1
+MAKE_RATIONAL(rax, rsi, rdi)", make_unary, "numerator";
 
-        "DENOMINATOR rsi, rsi
-	 mov rdi, 1
-	 MAKE_RATIONAL(rax, rsi, rdi)", make_unary, "denominator";
+      "DENOMINATOR rsi, rsi
+mov rdi, 1
+MAKE_RATIONAL(rax, rsi, rdi)", make_unary, "denominator";
 
-        (* GCD *)
-        "xor rdx, rdx
-	 NUMERATOR rax, rsi
+      (* GCD *)
+      "xor rdx, rdx
+NUMERATOR rax, rsi
          NUMERATOR rdi, rdi
        .loop:
-	 and rdi, rdi
-	 jz .end_loop
-	 xor rdx, rdx
-	 div rdi
-	 mov rax, rdi
-	 mov rdi, rdx
-	 jmp .loop
+and rdi, rdi
+jz .end_loop
+xor rdx, rdx
+div rdi
+mov rax, rdi
+mov rdi, rdx
+jmp .loop
        .end_loop:
-	 mov rdx, rax
+mov rdx, rax
          MAKE_RATIONAL(rax, rdx, 1)", make_binary, "gcd";
-      ] in
+    ] in
     String.concat "\n\n" (List.map (fun (a, b, c) -> (b c a)) misc_parts);;
 
   (* This is the interface of the module. It constructs a large x86 64-bit string using the routines

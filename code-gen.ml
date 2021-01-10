@@ -277,8 +277,8 @@ and make_gen_box_get constant_table fvars_table v =
   ;;BOX_GET_END \n"
 
 and make_gen_box_set  constant_table fvars_table v exp =
-let eps = make_generate  constant_table fvars_table exp in
-let eps_var = make_gen_var fvars_table v in
+  let eps = make_generate  constant_table fvars_table exp in
+  let eps_var = make_gen_var fvars_table v in
   ";;BOX_SET \n"
   ^ eps ^
   "push rax \n
@@ -286,13 +286,13 @@ let eps_var = make_gen_var fvars_table v in
     pop qword [rax] \n
     mov rax, SOB_VOID_ADDRESS \n"
 (* and make_gen_lambda  constant_table fvars_table arglist body opt =
-  (*only for empty lex : make closure without extend
+   (*only for empty lex : make closure without extend
     ToDo: maybe also give lcode,lbody another ind (they share same instance with the IF labels)*)
-  (* LEXICAL_ENV = [rbp+16] *)
+   (* LEXICAL_ENV = [rbp+16] *)
 
-  let ind = (Gensym.next "") in
-  (* LEXICAL_ENV = null => { void* LEXICAL_ENV = malloc(size_of word), *LEXICAL = null }   *)
-  let alloc_first_env =
+   let ind = (Gensym.next "") in
+   (* LEXICAL_ENV = null => { void* LEXICAL_ENV = malloc(size_of word), *LEXICAL = null }   *)
+   let alloc_first_env =
     "cmp LEXICAL_ENV, SOB_NIL_ADDRESS
     jne end_first_alloc"^ind^" \n
     MALLOC rbx, WORD_SIZE \n
@@ -300,8 +300,8 @@ let eps_var = make_gen_var fvars_table v in
     mov LEXICAL_ENV, rbx
     end_first_alloc"^ind^":\n" in
 
-  (* calc |ENV| and store it in rcx *)
-  let get_env_size =
+   (* calc |ENV| and store it in rcx *)
+   let get_env_size =
     "mov rbx, LEXICAL_ENV
     mov rcx, 0
     l_env_counter"^ind^":
@@ -312,9 +312,9 @@ let eps_var = make_gen_var fvars_table v in
     l_env_counter_end"^ind^":
     " in
 
-  (* 1. alloc ext_env and store and store it in rdx
+   (* 1. alloc ext_env and store and store it in rdx
      2. store current env in rbx *)
-  let allocate_ext_env =
+   let allocate_ext_env =
     ";; get old env \n
     mov rbx,LEXICAL_ENV
     ;; we need to allocate |env+1| so we inc rcx which holds the length of the env list
@@ -329,7 +329,7 @@ let eps_var = make_gen_var fvars_table v in
     dec rcx\n
     " in
 
-  let copy_pointers =
+   let copy_pointers =
 
     "lcopy"^ind^":
     ;; take arguments from old env and copy them
@@ -342,16 +342,16 @@ let eps_var = make_gen_var fvars_table v in
     l_end_copy"^ind^":\n
     " in
 
-  let num_of_args =
+   let num_of_args =
     "mov rcx,0
     mov rbx, ARGS_NUMBER ;; get number of args \n
     cmp rbx,0
     jz l_end_copy_minors"^ind^"\n" in
-  let minors_size ="shl rbx, 3  ;;mul with size of word (array of pointers) \n" in
-  let minors  =
+   let minors_size ="shl rbx, 3  ;;mul with size of word (array of pointers) \n" in
+   let minors  =
     "MALLOC rcx, rbx ;; allocate minors\n
     shr rbx,3 \n" in
-  let alloc_minors =
+   let alloc_minors =
     (* if ind = (List.length arglist) then ""
        else  *)
     "dec rbx
@@ -364,16 +364,16 @@ let eps_var = make_gen_var fvars_table v in
     \t jmp copy_minors"^ind^"
     l_end_copy_minors"^ind^":" in
 
-  let set_lex_env =
+   let set_lex_env =
     "mov qword [rdx], rcx ;; load minors to extenv[0] \n
     mov LEXICAL_ENV,rdx
     " in
-  let make_ext_env =
+   let make_ext_env =
     alloc_first_env^get_env_size^allocate_ext_env^copy_pointers^
     num_of_args^minors_size^minors^alloc_minors^set_lex_env in
 
-  let eps_body = make_generate constant_table fvars_table body in
-  let adjustBody =
+   let eps_body = make_generate constant_table fvars_table body in
+   let adjustBody =
     match opt with
       | "" -> ""
       | s ->
@@ -428,7 +428,7 @@ let eps_var = make_gen_var fvars_table v in
         mov rbp,rsp
         DEBUG_"^ind^":
       " in
-  let code =
+   let code =
     "Lcode"^ind^":
     push rbp
     mov rbp , rsp \n
@@ -440,13 +440,13 @@ let eps_var = make_gen_var fvars_table v in
     ret \n
     Lcont"^ind^": \n" in
 
-  ";; Lambda_Simple: \n
-  Lambda_Simple"^ind^":\n
-  "^make_ext_env^" \n
-  jmp Lcont"^ind^ "\n"
-  ^ code ^
-  "mov rbx,LEXICAL_ENV \n
-  MAKE_CLOSURE(rax, rbx, Lcode"^ind^" ) \n" *)
+   ";; Lambda_Simple: \n
+   Lambda_Simple"^ind^":\n
+   "^make_ext_env^" \n
+   jmp Lcont"^ind^ "\n"
+   ^ code ^
+   "mov rbx,LEXICAL_ENV \n
+   MAKE_CLOSURE(rax, rbx, Lcode"^ind^" ) \n" *)
 
 and make_gen_lambda  constant_table fvars_table arglist body opt =
   (*only for empty lex : make closure without extend
@@ -513,8 +513,8 @@ and make_gen_lambda  constant_table fvars_table arglist body opt =
   let eps_body = make_generate constant_table fvars_table body in
   let adjustBody =
     match opt with
-      | "" -> ""
-      | s ->
+    | "" -> ""
+    | s ->
       "
         .adjust"^ind^":
 

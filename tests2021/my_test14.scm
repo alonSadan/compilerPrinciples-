@@ -1,5 +1,0 @@
-(((lambda x (lambda () x)) 1))
-(((lambda x (lambda y x)) 1))
-(((lambda x (lambda y x)) 1))
-((lambda x 1))
-(((lambda x (lambda y x)) 2 3 4) 1)

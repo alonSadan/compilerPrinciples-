@@ -1,6 +1,0 @@
-(integer? (((lambda (x y) (lambda (z w) (+ x y z w))) 6 7 ) 8 9))
-(integer? 3.5)
-(number? 3)
-(number? 3.5)
-(number? #t)
-(number? #\a)
