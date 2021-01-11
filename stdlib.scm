@@ -56,7 +56,7 @@
 	      (lambda (x)
 		(or (null? x)
 		    (and (pair? x)
-			 (list-loop? (cdr x)))))))
+			 (list?-loop (cdr x)))))))
       list?-loop)))
 
 (define make-string
@@ -88,7 +88,7 @@
 		(lambda (x . y)
 		  (if (null? y)
 		      (/ 1 x)
-		      (fold-left / x y))))))
+		      (fold-left / x y)))))
     (let ((^comparator
 	  (lambda (op)
 	    (lambda (x . ys)
