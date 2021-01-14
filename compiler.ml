@@ -18,37 +18,37 @@ let make_prologue consts_tbl fvars_tbl =
   (* The table defines a mapping from the names of primitive procedures in scheme to their labels in
      the assembly implementation. *)
   let primitive_names_to_labels =
-  [
-    (* Type queries  *)
-    "boolean?", "boolean?"; "flonum?", "flonum?"; "rational?", "rational?";
-    "pair?", "pair?"; "null?", "null?"; "char?", "char?"; "string?", "string?";
-    "procedure?", "procedure?"; "symbol?", "symbol?";
-    (* String procedures *)
-    "string-length", "string_length"; "string-ref", "string_ref"; "string-set!", "string_set";
-    "make-string", "make_string"; "symbol->string", "symbol_to_string";
-    (* Type conversions *)
-    "char->integer", "char_to_integer"; "integer->char", "integer_to_char"; "exact->inexact", "exact_to_inexact";
-    (* Identity test *)
-    "eq?", "eq?";
-    (* Arithmetic ops *)
-    "+", "add"; "*", "mul"; "/", "div"; "=", "eq"; "<", "lt";
-    (* Additional rational numebr ops *)
-    "numerator", "numerator"; "denominator", "denominator"; "gcd", "gcd";
-    (* you can add yours here *)
-    "car","car";"cdr","cdr";"cons","cons";"set-car!","set_car";"set-cdr!","set_cdr";"apply","my_apply";
-  ] in
+    [
+      (* Type queries  *)
+      "boolean?", "boolean?"; "flonum?", "flonum?"; "rational?", "rational?";
+      "pair?", "pair?"; "null?", "null?"; "char?", "char?"; "string?", "string?";
+      "procedure?", "procedure?"; "symbol?", "symbol?";
+      (* String procedures *)
+      "string-length", "string_length"; "string-ref", "string_ref"; "string-set!", "string_set";
+      "make-string", "make_string"; "symbol->string", "symbol_to_string";
+      (* Type conversions *)
+      "char->integer", "char_to_integer"; "integer->char", "integer_to_char"; "exact->inexact", "exact_to_inexact";
+      (* Identity test *)
+      "eq?", "eq?";
+      (* Arithmetic ops *)
+      "+", "add"; "*", "mul"; "/", "div"; "=", "eq"; "<", "lt";
+      (* Additional rational numebr ops *)
+      "numerator", "numerator"; "denominator", "denominator"; "gcd", "gcd";
+      (* you can add yours here *)
+      "car","car";"cdr","cdr";"cons","cons";"set-car!","set_car";"set-cdr!","set_cdr";"apply","my_apply";
+    ] in
   let make_primitive_closure (prim, label) =
     (* This implementation assumes fvars are addressed by an offset from the label `fvar_tbl`.
        If you use a different addressing scheme (e.g., a label for each fvar), change the
        addressing here to match. *)
     "MAKE_CLOSURE(rax, SOB_NIL_ADDRESS, " ^ label  ^ ")\n" ^
-      "mov [fvar_tbl+" ^  (string_of_int (List.assoc prim fvars_tbl)) ^ "], rax" in
+    "mov [fvar_tbl+" ^  (string_of_int (List.assoc prim fvars_tbl)) ^ "], rax" in
   let constant_bytes (c, (a, s)) =
     (* Adapt the deconstruction here to your constants data generation scheme.
        This implementation assumes the bytes representing the constants are pre-computed in
        the code-generator and stored in the last column of a three-column constants-table structure *)
     s in
-";;; All the macros and the scheme-object printing procedure
+  ";;; All the macros and the scheme-object printing procedure
 ;;; are defined in compiler.s
 %include \"compiler.s\"
 
@@ -125,8 +125,8 @@ exception X_missing_input_file;;
 try
   (* Compile a string of scheme code to a collection of analyzed ASTs *)
   let string_to_asts s = List.map Semantics.run_semantics
-                           (Tag_Parser.tag_parse_expressions
-                              (Reader.read_sexprs s)) in
+      (Tag_Parser.tag_parse_expressions
+         (Reader.read_sexprs s)) in
 
   (* get the filename to compile from the command line args *)
   let infile = Sys.argv.(1) in
@@ -147,14 +147,14 @@ try
   (* Generate assembly code for each ast and merge them all into a single string *)
   let generate = Code_Gen.generate consts_tbl fvars_tbl in
   let code_fragment = String.concat "\n\n"
-                        (List.map
-                           (fun ast -> (generate ast) ^ "\n\tcall write_sob_if_not_void")
-                           asts) in
+      (List.map
+         (fun ast -> (generate ast) ^ "\n\tcall write_sob_if_not_void")
+         asts) in
 
   (* merge everything into a single large string and print it out *)
   print_string ((make_prologue consts_tbl fvars_tbl)  ^
-                  code_fragment ^ clean_exit ^
-                    "\n" ^ Prims.procs)
+                code_fragment ^ clean_exit ^
+                "\n" ^ Prims.procs)
 
 (* raise an exception if the input file isn't found *)
 with Invalid_argument(x) -> raise X_missing_input_file;;
