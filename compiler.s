@@ -137,7 +137,7 @@
 	%2
 %endmacro
 
-%macro MAKE_LITERAL_STRING 1
+%macro MAKE_LITERAL_STRING 1+
 	db T_STRING
 	dq (%%end_str - %%str)
 %%str:

@@ -89,6 +89,16 @@ let toplogy_sort lst =
   (* List.fold_left (fun acc x -> acc @ (sub_lists x) @ [x] ) [] lst;; *)
   List.fold_right (fun x acc -> acc @ (sub_lists x) @ [x] ) lst [];;
 
+let string_to_ascii_list str =
+
+  let rec string_to_list ch=  match ch with
+    | "" -> []
+    | ch -> (String.get ch 0 ) :: (string_to_list (String.sub ch 1 ( (String.length ch)-1) ) ) in
+  let chars = string_to_list str in
+  let asciis = List.map Char.code chars in
+  let ascii_strs = List.map (Printf.sprintf "%d") asciis in
+  String.concat ", " ascii_strs;;
+
 let get_pos constant table = fst (List.assoc constant table);;
 let get_str_pos constant table = string_of_int (fst (List.assoc constant table));;
 
@@ -111,7 +121,8 @@ let rec make_const_table asts pos table =
           (match n with
            | Float(f) -> make_const_table cs (pos + 9) (table @ [Sexpr(c) ,(pos,"MAKE_LITERAL_FLOAT("^ string_of_float f ^")"  ^ str_comment_pos pos)])
            | Fraction(num,den) -> make_const_table cs (pos + 17) (table @ [Sexpr(c) ,(pos,"MAKE_LITERAL_RATIONAL("^string_of_int num^","^string_of_int den^")" ^ str_comment_pos pos)]))
-        | String (s) -> make_const_table cs (pos+9+ (String.length s)) (table @ [Sexpr(c), (pos, "MAKE_LITERAL_STRING \"" ^ s ^"\"" ^ str_comment_pos pos)])
+        | String (s) -> if (String.length s) > 0 then( make_const_table cs (pos+9+ (String.length s)) (table @ [Sexpr(c), (pos, "MAKE_LITERAL_STRING " ^ (string_to_ascii_list s) ^" " ^ str_comment_pos pos)]))
+          else (make_const_table cs (pos+9+ (String.length s)) (table @ [Sexpr(c), (pos, "MAKE_LITERAL_STRING \"" ^ s ^"\" " ^ str_comment_pos pos)]))
         | Nil -> make_const_table cs (pos + 1) (table @ [Sexpr(c) ,(pos,"MAKE_NIL" ^ str_comment_pos pos)])
         | Symbol(s) -> make_const_table cs (pos + 9)
                          (table @ [Sexpr(c) ,(pos,"MAKE_LITERAL_SYMBOL(const_tbl+"^get_str_pos (Sexpr(String s)) table^")" ^ str_comment_pos pos)])
@@ -235,13 +246,13 @@ and make_gen_or  constant_table fvars_table exprs=
   let ind = (Gensym.next "") in
   if (List.length exprs) = 0 then "mov rax, SOB_FALSE_ADDRESS\n Lexit"^ind^":"
   else (
-  let eps_lst = List.map (make_generate  constant_table fvars_table) exprs in
-  let ans =
-    String.concat "\n"
-      (List.map (fun e-> e ^ "\n" ^
-                         "cmp rax, SOB_FALSE_ADDRESS\n
+    let eps_lst = List.map (make_generate  constant_table fvars_table) exprs in
+    let ans =
+      String.concat "\n"
+        (List.map (fun e-> e ^ "\n" ^
+                           "cmp rax, SOB_FALSE_ADDRESS\n
       jne Lexit"^ind ^"\n" ) eps_lst) in
-  ans ^ "Lexit"^ind^":")
+    ans ^ "Lexit"^ind^":")
 
 and make_gen_set  constant_table fvars_table var value=
   let eps = make_generate  constant_table fvars_table value in
